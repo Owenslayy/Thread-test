@@ -5,3 +5,8 @@ managed_components/
 dependencies.lock
 *.pyc
 .vscode/
+/components/.espressif/python_env
+/components/.espressif/tools
+*.dll
+/components
+/components
