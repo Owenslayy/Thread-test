@@ -33,6 +33,7 @@
 #include "openthread/thread_ftd.h"
 #include "openthread/instance.h"
 #include "driver/gpio.h"
+#include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "led_strip.h"
@@ -48,6 +49,12 @@
 
 #define TAG "ot_esp_cli"
 #define LED_GPIO 8  // ESP32-C6 built-in RGB LED (WS2812)
+
+// UART configuration for leader
+#define UART_NUM UART_NUM_1
+#define UART_TX_PIN 5
+#define UART_RX_PIN 4
+#define UART_BUF_SIZE 1024
 
 // LED blink task - works for both router and end device using RGB LED
 void led_blink_task(void *pvParameters)
@@ -66,6 +73,8 @@ void led_blink_task(void *pvParameters)
     ESP_LOGI(TAG, "RGB LED task running on GPIO %d", LED_GPIO);
     
     static uint32_t log_counter = 0;
+    static bool role_printed = false;
+    
     while (1) {
         // Get Thread state to adjust blink pattern
         esp_openthread_lock_acquire(portMAX_DELAY);
@@ -73,10 +82,18 @@ void led_blink_task(void *pvParameters)
         otDeviceRole role = otThreadGetDeviceRole(instance);
         esp_openthread_lock_release();
         
-        // Only log every 50 blinks (10 seconds) to avoid flooding CLI
+#ifdef CONFIG_DEVICE_TYPE_END_DEVICE
+        // Child: log every 50 blinks (10 seconds) to avoid flooding CLI
         if (log_counter++ % 50 == 0) {
             ESP_LOGI(TAG, "Device role: %d (0=disabled, 1=detached, 2=child, 3=router, 4=leader)", role);
         }
+#else
+        // Leader: print role only once when it becomes leader
+        if (!role_printed && role == OT_DEVICE_ROLE_LEADER) {
+            ESP_LOGI(TAG, "Device role: %d (leader)", role);
+            role_printed = true;
+        }
+#endif
         
         if (role == OT_DEVICE_ROLE_LEADER || role == OT_DEVICE_ROLE_ROUTER) {
             // Router/Leader ready: Fast green blink (200ms cycle)
@@ -104,6 +121,28 @@ void led_blink_task(void *pvParameters)
             vTaskDelay(pdMS_TO_TICKS(500));
         }
     }
+}
+
+// UART reading task - only for leader
+void uart_read_task(void *pvParameters)
+{
+    uint8_t *data = (uint8_t *) malloc(UART_BUF_SIZE);
+    
+    while (1) {
+        int len = uart_read_bytes(UART_NUM, data, UART_BUF_SIZE, pdMS_TO_TICKS(2000));
+        if (len > 0) {
+            ESP_LOGI(TAG, "UART received %d bytes:", len);
+            ESP_LOG_BUFFER_HEX(TAG, data, len);
+            
+            // Echo back what was received (optional)
+            uart_write_bytes(UART_NUM, (const char *)data, len);
+        } else {
+            // Print status every 2-3 seconds when no UART data
+            ESP_LOGI(TAG, "UART: Waiting for data on GPIO%d...", UART_RX_PIN);
+        }
+    }
+    
+    free(data);
 }
 
 void app_main(void)
@@ -145,6 +184,9 @@ void app_main(void)
     mode.mNetworkData = false;   // Don't need full network data
     otThreadSetLinkMode(instance, mode);
     ESP_LOGI(TAG, "Configured as End Device (Non-sleepy)");
+    
+    // Set faster disconnection detection - 30 seconds timeout
+    otThreadSetChildTimeout(instance, 15);  // 30 seconds timeout before detaching
     
     // Check if we have stored network credentials
     otOperationalDataset dataset;
@@ -334,6 +376,25 @@ void app_main(void)
         
         ESP_LOGI(TAG, "===========================================");
     }
+    
+    // Configure UART for leader
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM, UART_BUF_SIZE * 2, 0, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    
+    ESP_LOGI(TAG, "UART configured on RX:GPIO%d, TX:GPIO%d", UART_RX_PIN, UART_TX_PIN);
+    
+    // Start UART read task
+    xTaskCreate(uart_read_task, "uart_read", 4096, NULL, 5, NULL);
     
     // Start LED blink task
     xTaskCreate(led_blink_task, "led_blink", 2048, NULL, 5, NULL);
