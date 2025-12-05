@@ -1,0 +1,9 @@
+dataset init new
+dataset networkname OpenThread
+dataset panid 0x676b
+dataset extpanid deadbeef00cafe
+dataset networkkey c716d0753043ae2f5b63c71e3e51d7d0
+dataset channel 11
+dataset commit active
+ifconfig up
+
