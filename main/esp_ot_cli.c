@@ -55,6 +55,22 @@
 #define UART_TX_PIN 5
 #define UART_RX_PIN 4
 #define UART_BUF_SIZE 1024
+#define CONTROL_PIN 7  // GPIO 7 for output control
+
+// Function to check UART data and control GPIO 7
+void check_uart_and_control_pin(uint8_t *data, int len)
+{
+    if (len > 0) {
+        // Check if received data is 0x00
+        if (data[0] == 0x00) {
+            gpio_set_level(CONTROL_PIN, 1);  // Turn GPIO 7 ON
+            ESP_LOGI(TAG, "UART received 0x00 - GPIO %d turned ON", CONTROL_PIN);
+        } else {
+            gpio_set_level(CONTROL_PIN, 0);  // Turn GPIO 7 OFF for other values
+            ESP_LOGI(TAG, "UART received 0x%02X - GPIO %d turned OFF", data[0], CONTROL_PIN);
+        }
+    }
+}
 
 // LED blink task - works for both router and end device using RGB LED
 void led_blink_task(void *pvParameters)
@@ -133,6 +149,9 @@ void uart_read_task(void *pvParameters)
         if (len > 0) {
             ESP_LOGI(TAG, "UART received %d bytes:", len);
             ESP_LOG_BUFFER_HEX(TAG, data, len);
+            
+            // Check if data is 0x00 and control GPIO 7
+            check_uart_and_control_pin(data, len);
             
             // Echo back what was received (optional)
             uart_write_bytes(UART_NUM, (const char *)data, len);
@@ -392,6 +411,18 @@ void app_main(void)
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
     
     ESP_LOGI(TAG, "UART configured on RX:GPIO%d, TX:GPIO%d", UART_RX_PIN, UART_TX_PIN);
+    
+    // Configure GPIO 7 as output for UART control
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << CONTROL_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io_conf);
+    gpio_set_level(CONTROL_PIN, 0);  // Initialize to LOW
+    ESP_LOGI(TAG, "GPIO %d configured as output (initialized to LOW)", CONTROL_PIN);
     
     // Start UART read task
     xTaskCreate(uart_read_task, "uart_read", 4096, NULL, 5, NULL);
