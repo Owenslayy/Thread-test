@@ -32,6 +32,8 @@
 #include "openthread/thread.h"
 #include "openthread/thread_ftd.h"
 #include "openthread/instance.h"
+#include "openthread/udp.h"
+#include "openthread/ip6.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
@@ -57,6 +59,11 @@
 #define UART_BUF_SIZE 1024
 #define CONTROL_PIN 7  // GPIO 7 for output control
 
+// Global UDP socket and child address
+static otUdpSocket sUdpSocket;
+static otIp6Address sChildAddr;
+static bool sChildAddrSet = false;
+
 // Function to check UART data and control GPIO 7
 void check_uart_and_control_pin(uint8_t *data, int len)
 {
@@ -70,6 +77,62 @@ void check_uart_and_control_pin(uint8_t *data, int len)
             ESP_LOGI(TAG, "UART received 0x%02X - GPIO %d turned OFF", data[0], CONTROL_PIN);
         }
     }
+}
+
+// Initialize UDP socket for sending to child
+void init_udp_socket(otInstance *instance)
+{
+    otError error = otUdpOpen(instance, &sUdpSocket, NULL, NULL);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to open UDP socket: %d", error);
+        return;
+    }
+    ESP_LOGI(TAG, "UDP socket initialized");
+}
+
+// Send data to the child device
+void send_to_child(otInstance *instance, const uint8_t *data, uint16_t len)
+{
+    if (!sChildAddrSet) {
+        ESP_LOGW(TAG, "Child address not set yet");
+        return;
+    }
+    
+    otError error;
+    otMessage *message = otUdpNewMessage(instance, NULL);
+    if (message == NULL) {
+        ESP_LOGE(TAG, "Failed to create UDP message");
+        return;
+    }
+    
+    error = otMessageAppend(message, data, len);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to append data: %d", error);
+        otMessageFree(message);
+        return;
+    }
+    
+    otMessageInfo messageInfo;
+    memset(&messageInfo, 0, sizeof(otMessageInfo));
+    messageInfo.mPeerAddr = sChildAddr;
+    messageInfo.mPeerPort = 12345;
+    messageInfo.mInterfaceId = OT_NETIF_THREAD;
+    
+    error = otUdpSend(instance, &sUdpSocket, message, &messageInfo);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to send UDP message: %d", error);
+        otMessageFree(message);
+    } else {
+        ESP_LOGI(TAG, "Data sent to child (%d bytes)", len);
+    }
+}
+
+// Set the child's IPv6 address for sending data
+void set_child_address(const otIp6Address *addr)
+{
+    sChildAddr = *addr;
+    sChildAddrSet = true;
+    ESP_LOGI(TAG, "Child address set");
 }
 
 // LED blink task - works for both router and end device using RGB LED
@@ -162,6 +225,23 @@ void uart_read_task(void *pvParameters)
     }
     
     free(data);
+}
+
+// Example task: Send test data to child every 10 seconds
+void send_data_example_task(void *pvParameters)
+{
+    otInstance *instance = (otInstance *)pvParameters;
+    uint8_t test_data[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F};  // "Hello"
+    
+    vTaskDelay(pdMS_TO_TICKS(5000));  // Wait 5 seconds before first send
+    
+   /* while (1) {
+        esp_openthread_lock_acquire(portMAX_DELAY);
+        send_to_child(instance, test_data, sizeof(test_data));
+        esp_openthread_lock_release();
+        
+        vTaskDelay(pdMS_TO_TICKS(10000));  // Send every 10 seconds
+    }*/
 }
 
 void app_main(void)
@@ -368,6 +448,9 @@ void app_main(void)
         ESP_LOGI(TAG, "Leader promotion result: %d (will become leader after attach attempts)", leaderError);
     }
     
+    // Initialize UDP socket for sending to child
+    init_udp_socket(instance);
+    
     ESP_LOGI(TAG, "Configured as Router - Thread interface started with hardcoded credentials");
     
     // Wait a moment for network to form, then print credentials
@@ -426,6 +509,9 @@ void app_main(void)
     
     // Start UART read task
     xTaskCreate(uart_read_task, "uart_read", 4096, NULL, 5, NULL);
+    
+    // Start example task to send test data to child
+    xTaskCreate(send_data_example_task, "send_example", 2048, instance, 4, NULL);
     
     // Start LED blink task
     xTaskCreate(led_blink_task, "led_blink", 2048, NULL, 5, NULL);
