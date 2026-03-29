@@ -118,8 +118,19 @@ static bool init_udp_socket_locked(otInstance *instance)
         return false;
     }
 
+    otSockAddr localAddr;
+    memset(&localAddr, 0, sizeof(localAddr));
+    localAddr.mPort = UDP_PORT;
+
+    error = otUdpBind(instance, &sUdpSocket, &localAddr, OT_NETIF_THREAD_INTERNAL);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to bind send UDP socket: %d", error);
+        otUdpClose(instance, &sUdpSocket);
+        return false;
+    }
+
     sUdpSocketOpen = true;
-    ESP_LOGI(TAG, "UDP send socket initialized");
+    ESP_LOGI(TAG, "UDP send socket initialized on port %d", UDP_PORT);
     return true;
 }
 

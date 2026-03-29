@@ -1,51 +1,100 @@
+I (354) app_init: ELF file SHA256:  797cd76cb...
+I (358) app_init: ESP-IDF:          v6.0-beta1-1149-gd01bc98339
+I (364) efuse_init: Min chip rev:     v0.0
+I (368) efuse_init: Max chip rev:     v0.99
+I (372) efuse_init: Chip rev:         v0.2
+I (375) heap_init: Initializing. RAM available for dynamic allocation:
+I (382) heap_init: At 4081ADF0 len 00061820 (390 KiB): RAM
+I (387) heap_init: At 4087C610 len 00002F54 (11 KiB): RAM
+I (392) heap_init: At 50000000 len 00003FE8 (15 KiB): RTCRAM
+I (398) spi_flash: detected chip: generic
+I (401) spi_flash: flash io: dio
+W (404) spi_flash: Detected size(8192k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
 I (416) sleep_gpio: Configure to isolate all GPIO pins in sleep state
 I (422) sleep_gpio: Enable automatic switching of GPIO sleep configuration
 I (429) coexist: coex firmware version: 7260f71
 I (433) coexist: coexist rom version 5b8dcfa
-I (437) main_task: Started on CPU0
-I (437) main_task: Calling app_main()
-> I (457) OPENTHREAD: Host connection mode none
-I (457) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
-I (517) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
-I(527) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
-I(527) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
-I(537) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0x8001, extaddr:4adb5c32029a0e94, role:child, mode:0x0c, version:5, keyseq:0x0, ...
-I(537) OPENTHREAD:[I] Settings------: ... pid:0x45400c35, mlecntr:0x3ea, maccntr:0x3e8, mliid:07c8941b835ae6e7}
-I(547) OPENTHREAD:[I] Settings------: Read ParentInfo {extaddr:7ef7260d8b4b1f71, version:5}
-I (557) OPENTHREAD: OpenThread attached to netif
-> I(577) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
-I (577) ot_esp_cli: Child thread enabled
-I (577) ot_esp_cli: Receive UDP socket initialized on port 12345
-I (587) OT_STATE: netif up
-I (597) ot_esp_cli: RGB LED task running on GPIO 8
-I (597) ot_esp_cli: Device role: 1 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (597) main_task: Returned from app_main()
-I(627) OPENTHREAD:[N] Mle-----------: Role detached -> child
-W(627) OPENTHREAD:[W] Mle-----------: Failed to process Child Update Response as child: NotFound
-I (21197) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (41197) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
+I (438) main_task: Started on CPU0
+I (438) main_task: Calling app_main()
+> I (448) OPENTHREAD: Host connection mode none
+I (448) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
+I (528) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
+I(528) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
+I(528) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
+I(538) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0x8001, extaddr:4adb5c32029a0e94, role:child, mode:0x0c, version:5, keyseq:0x0, ...
+I(548) OPENTHREAD:[I] Settings------: ... pid:0x7805907a, mlecntr:0x23ce, maccntr:0x2328, mliid:07c8941b835ae6e7}
+I(558) OPENTHREAD:[I] Settings------: Read ParentInfo {extaddr:7ef7260d8b4b1f71, version:5}
+I (558) OPENTHREAD: OpenThread attached to netif
+> I(578) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
+I (578) ot_esp_cli: Child thread enabled
+I (578) ot_esp_cli: Receive UDP socket initialized on port 12345
+I (588) OT_STATE: netif up
+I (588) ot_esp_cli: RGB LED task running on GPIO 8
+I (588) ot_esp_cli: Device role: 1 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
+I (598) main_task: Returned from app_main()
+I(4678) OPENTHREAD:[N] Mle-----------: RLOC16 8001 -> fffe
+I(4958) OPENTHREAD:[N] Mle-----------: Attach attempt 1, AnyPartition reattaching with Active Dataset
+I(5768) OPENTHREAD:[N] Mle-----------: RLOC16 fffe -> 8002
+I(5768) OPENTHREAD:[N] Mle-----------: Role detached -> child
+E (10588) ot_esp_cli: Failed to read UDP message: 1
+E (15578) ot_esp_cli: Failed to read UDP message: 1
+E (20568) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (20568) task_wdt:  - IDLE (CPU 0)
+E (20568) task_wdt: Tasks currently running:
+E (20568) task_wdt: CPU 0: ot_main
+E (20568) task_wdt: Print CPU 0 (current core) registers
+Core  0 register dump:
+MEPC    : 0x4203f8f6  RA      : 0x4203f926  SP      : 0x40822760  GP      : 0x4080fe64  
+--- 0x4203f8f6: ot::MessagePool::FreeBuffers(ot::Buffer*) at C:/Users/owena/esp/v6.0/esp-idf/components/openthread/openthread/src/core/common/message.cpp:150
+--- 0x4203f926: ot::MessagePool::Free(ot::Message*) at C:/Users/owena/esp/v6.0/esp-idf/components/openthread/openthread/src/core/common/message.cpp:105
+TP      : 0x40822a50  T0      : 0x40030dca  T1      : 0x10000000  T2      : 0x1b94c807
+--- 0x40030dca: memset in ROM
+S0/FP   : 0x40814ad8  S1      : 0x00000011  A0      : 0x40814ad0  A1      : 0x408151d8
+A2      : 0x420ebd2c  A3      : 0x40815158  A4      : 0x00004a1c  A5      : 0x40816ad0
+A6      : 0xa0000000  A7      : 0x0000000a  S2      : 0x40822784  S3      : 0x4082283c
+S4      : 0x00000000  S5      : 0x40816b60  S6      : 0x00000001  S7      : 0x00008002
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000
+T3      : 0x00000000  T4      : 0x75b9b7ef  T5      : 0x055dfaa4  T6      : 0x00addefd
+MSTATUS : 0x00001889  MTVEC   : 0x40800001  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de
+--- 0x40800001: _vector_table at C:/Users/owena/esp/v6.0/esp-idf/components/riscv/vectors_intc.S:54
+MHARTID : 0x00000000
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (25568) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (25568) task_wdt:  - IDLE (CPU 0)
+E (25568) task_wdt: Tasks currently running:
+E (25568) task_wdt: CPU 0: ot_main
+E (25568) task_wdt: Print CPU 0 (current core) registers
+Core  0 register dump:
+MEPC    : 0x4203f902  RA      : 0x4203f926  SP      : 0x40822760  GP      : 0x4080fe64  
+--- 0x4203f902: ot::MessagePool::FreeBuffers(ot::Buffer*) at C:/Users/owena/esp/v6.0/esp-idf/components/openthread/openthread/src/core/common/message.cpp:140
+--- 0x4203f926: ot::MessagePool::Free(ot::Message*) at C:/Users/owena/esp/v6.0/esp-idf/components/openthread/openthread/src/core/common/message.cpp:105
+TP      : 0x40822a50  T0      : 0x40030dca  T1      : 0x10000000  T2      : 0x1b94c807
+--- 0x40030dca: memset in ROM
+S0/FP   : 0x40814ad8  S1      : 0x00000011  A0      : 0x40814ad0  A1      : 0x40815658
+A2      : 0x420ebd2c  A3      : 0x40815658  A4      : 0x00000cd3  A5      : 0x40816ad0
+A6      : 0xa0000000  A7      : 0x0000000a  S2      : 0x40822784  S3      : 0x4082283c
+S4      : 0x00000000  S5      : 0x40816b60  S6      : 0x00000001  S7      : 0x00008002  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000
+T3      : 0x00000000  T4      : 0x75b9b7ef  T5      : 0x055dfaa4  T6      : 0x00addefd
+MSTATUS : 0x00001889  MTVEC   : 0x40800001  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de
+--- 0x40800001: _vector_table at C:/Users/owena/esp/v6.0/esp-idf/components/riscv/vectors_intc.S:54
+MHARTID : 0x00000000
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
 -----------------------------leader---------------------------------------------------------------
-I (422) sleep_gpio: Configure to isolate all GPIO pins in sleep state
-I (428) sleep_gpio: Enable automatic switching of GPIO sleep configuration
-I (434) coexist: coex firmware version: 7260f71
-I (439) coexist: coexist rom version 5b8dcfa
-I (443) main_task: Started on CPU0
-I (443) main_task: Calling app_main()
-> I (453) OPENTHREAD: Host connection mode none
 I (453) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
 I (503) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
-I(513) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
+I(503) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
 I(513) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
 I(513) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0x8000, extaddr:7ef7260d8b4b1f71, role:leader, mode:0x0f, version:5, keyseq:0x0, ...
-I(523) OPENTHREAD:[I] Settings------: ... pid:0x6c8a06c3, mlecntr:0x271f, maccntr:0x2710, mliid:efb7b975a4fa5d05}
+I(523) OPENTHREAD:[I] Settings------: ... pid:0x41242a6c, mlecntr:0x4282, maccntr:0x4268, mliid:efb7b975a4fa5d05}
 I(533) OPENTHREAD:[I] Settings------: Read ChildInfo {rloc:0x8001, extaddr:4adb5c32029a0e94, timeout:60, mode:0x0c, version:5}
 I (543) OPENTHREAD: OpenThread attached to netif
 > I(563) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
-I (563) ot_esp_cli: UDP send socket initialized
+I (563) ot_esp_cli: UDP send socket initialized on port 12345
 I (563) OT_STATE: netif up
 I(1073) OPENTHREAD:[N] RouterTable---: Allocate router id 32
 I(1073) OPENTHREAD:[N] Mle-----------: Role detached -> leader
-I(1073) OPENTHREAD:[N] Mle-----------: Partition ID 0x4ca07438
+I(1073) OPENTHREAD:[N] Mle-----------: Partition ID 0x7805907a
 I (1083) ot_esp_cli: RGB LED task running on GPIO 8
 I (1083) main_task: Returned from app_main()
 I (1103) ot_esp_cli: Device role: 4 (leader)
@@ -55,11 +104,62 @@ I (6083) ot_esp_cli: Found child 0 with RLOC16: 0x8001, timeout: 60 s
 I (6083) ot_esp_cli: Child 0 IPv6 address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
 I (6083) ot_esp_cli: Child address set to fdde:ad00:beef:0:7c8:941b:835a:e6e7
 I (6083) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
-E (6093) ot_esp_cli: Failed to send UDP message: 7
-W (6103) ot_esp_cli: Send skipped or failed
+I (6093) ot_esp_cli: Data sent to child (1 bytes)
+I (6103) ot_esp_cli: Sent color command: B (BLUE)
 I (7083) ot_esp_cli: UART: Waiting for data on GPIO4...
 I (9083) ot_esp_cli: UART: Waiting for data on GPIO4...
 I (11083) ot_esp_cli: UART: Waiting for data on GPIO4...
 I (11103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
-E (11103) ot_esp_cli: Failed to send UDP message: 7
-W (11103) ot_esp_cli: Send skipped or failed
+I (11103) ot_esp_cli: Data sent to child (1 bytes)
+I (11103) ot_esp_cli: Sent color command: G (GREEN)
+I (13083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (15083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (16103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (16103) ot_esp_cli: Data sent to child (1 bytes)
+I (16103) ot_esp_cli: Sent color command: B (BLUE)
+I (17083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (19083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (21083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (21103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (21103) ot_esp_cli: Data sent to child (1 bytes)
+I (21103) ot_esp_cli: Sent color command: G (GREEN)
+I (23083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (25083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (26103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (26103) ot_esp_cli: Data sent to child (1 bytes)
+I (26103) ot_esp_cli: Sent color command: B (BLUE)
+I (27083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (29083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (31083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (31103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (31103) ot_esp_cli: Data sent to child (1 bytes)
+I (31103) ot_esp_cli: Sent color command: G (GREEN)
+I (33083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (35083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (36103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (36103) ot_esp_cli: Data sent to child (1 bytes)
+I (36103) ot_esp_cli: Sent color command: B (BLUE)
+I (37083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (39083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (41083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (41103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (41103) ot_esp_cli: Data sent to child (1 bytes)
+I (41103) ot_esp_cli: Sent color command: G (GREEN)
+I (43083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (45083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (46103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (46103) ot_esp_cli: Data sent to child (1 bytes)
+I (46103) ot_esp_cli: Sent color command: B (BLUE)
+I (47083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (49083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (51083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (51103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (51103) ot_esp_cli: Data sent to child (1 bytes)
+I (51103) ot_esp_cli: Sent color command: G (GREEN)
+I (53083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (55083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (56103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:7c8:941b:835a:e6e7
+I (56103) ot_esp_cli: Data sent to child (1 bytes)
+I (56103) ot_esp_cli: Sent color command: B (BLUE)
+I (57083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (59083) ot_esp_cli: UART: Waiting for data on GPIO4...
