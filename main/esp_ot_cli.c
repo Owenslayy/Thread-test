@@ -26,6 +26,7 @@
 #include "esp_openthread_cli.h"
 #include "esp_openthread_lock.h"
 #include "esp_openthread_types.h"
+#include "esp_openthread_netif_glue.h"
 #include "esp_ot_config.h"
 #include "esp_vfs_eventfd.h"
 #include "nvs_flash.h"
@@ -116,7 +117,6 @@ void send_to_child(otInstance *instance, const uint8_t *data, uint16_t len)
     memset(&messageInfo, 0, sizeof(otMessageInfo));
     messageInfo.mPeerAddr = sChildAddr;
     messageInfo.mPeerPort = 12345;
-    messageInfo.mInterfaceId = OT_NETIF_THREAD;
     
     error = otUdpSend(instance, &sUdpSocket, message, &messageInfo);
     if (error != OT_ERROR_NONE) {
@@ -151,9 +151,6 @@ void led_blink_task(void *pvParameters)
     
     ESP_LOGI(TAG, "RGB LED task running on GPIO %d", LED_GPIO);
     
-    static uint32_t log_counter = 0;
-    static bool role_printed = false;
-    
     while (1) {
         // Get Thread state to adjust blink pattern
         esp_openthread_lock_acquire(portMAX_DELAY);
@@ -163,11 +160,13 @@ void led_blink_task(void *pvParameters)
         
 #ifdef CONFIG_DEVICE_TYPE_END_DEVICE
         // Child: log every 50 blinks (10 seconds) to avoid flooding CLI
+        static uint32_t log_counter = 0;
         if (log_counter++ % 50 == 0) {
             ESP_LOGI(TAG, "Device role: %d (0=disabled, 1=detached, 2=child, 3=router, 4=leader)", role);
         }
 #else
         // Leader: print role only once when it becomes leader
+        static bool role_printed = false;
         if (!role_printed && role == OT_DEVICE_ROLE_LEADER) {
             ESP_LOGI(TAG, "Device role: %d (leader)", role);
             role_printed = true;
@@ -230,26 +229,22 @@ void uart_read_task(void *pvParameters)
 // Example task: Send test data to child every 10 seconds
 void send_data_example_task(void *pvParameters)
 {
-    otInstance *instance = (otInstance *)pvParameters;
-    uint8_t test_data[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F};  // "Hello"
+    // otInstance *instance = (otInstance *)pvParameters;
+    // uint8_t test_data[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F};  // "Hello"
     
     vTaskDelay(pdMS_TO_TICKS(5000));  // Wait 5 seconds before first send
     
-   /* while (1) {
-        esp_openthread_lock_acquire(portMAX_DELAY);
-        send_to_child(instance, test_data, sizeof(test_data));
-        esp_openthread_lock_release();
-        
-        vTaskDelay(pdMS_TO_TICKS(10000));  // Send every 10 seconds
-    }*/
+    // while (1) {
+    //     esp_openthread_lock_acquire(portMAX_DELAY);
+    //     send_to_child(instance, test_data, sizeof(test_data));
+    //     esp_openthread_lock_release();
+    //     
+    //     vTaskDelay(pdMS_TO_TICKS(10000));  // Send every 10 seconds
+    // }
 }
 
 void app_main(void)
 {
-    // Used eventfds:
-    // * netif
-    // * ot task queue
-    // * radio driver
     esp_vfs_eventfd_config_t eventfd_config = {
         .max_fds = 3,
     };
@@ -263,223 +258,120 @@ void app_main(void)
     esp_openthread_cli_init();
 #endif
 
-    esp_openthread_platform_config_t config = {
-        .radio_config = ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG(),
-        .host_config = ESP_OPENTHREAD_DEFAULT_HOST_CONFIG(),
-        .port_config = ESP_OPENTHREAD_DEFAULT_PORT_CONFIG(),
+    const esp_openthread_config_t config = {
+        .netif_config = ESP_NETIF_DEFAULT_OPENTHREAD(),
+        .platform_config = {
+            .radio_config = ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG(),
+            .host_config = ESP_OPENTHREAD_DEFAULT_HOST_CONFIG(),
+            .port_config = {
+                .storage_partition_name = "nvs",
+                .netif_queue_size = 10,
+                .task_queue_size = 10,
+            },
+        },
     };
 
+    // This starts the OT task in the background
     ESP_ERROR_CHECK(esp_openthread_start(&config));
     
-    // Configure device role
-    esp_openthread_lock_acquire(portMAX_DELAY);
+    // Get instance pointer once
     otInstance *instance = esp_openthread_get_instance();
-    
+
 #ifdef CONFIG_DEVICE_TYPE_END_DEVICE
-    // Configure as end device (non-sleepy for LED blinking)
-    otLinkModeConfig mode;
-    mode.mRxOnWhenIdle = true;   // Stay awake to blink LED
-    mode.mDeviceType = false;    // End device (not router)
-    mode.mNetworkData = false;   // Don't need full network data
+    /* ---------------- END DEVICE CONFIG ---------------- */
+    esp_openthread_lock_acquire(portMAX_DELAY);
+    
+    otLinkModeConfig mode = {.mRxOnWhenIdle = true, .mDeviceType = false, .mNetworkData = false};
     otThreadSetLinkMode(instance, mode);
-    ESP_LOGI(TAG, "Configured as End Device (Non-sleepy)");
+    otThreadSetChildTimeout(instance, 15);
     
-    // Set faster disconnection detection - 30 seconds timeout
-    otThreadSetChildTimeout(instance, 15);  // 30 seconds timeout before detaching
-    
-    // Check if we have stored network credentials
-    otOperationalDataset dataset;
-    if (otDatasetGetActive(instance, &dataset) == OT_ERROR_NONE) {
-        ESP_LOGI(TAG, "Found stored credentials - auto-joining network: %s", dataset.mNetworkName.m8);
-        // Auto-start Thread interface - will use stored credentials
-        otIp6SetEnabled(instance, true);
-        otThreadSetEnabled(instance, true);
-        ESP_LOGI(TAG, "Thread interface auto-started with stored credentials");
-    } else {
-        ESP_LOGI(TAG, "No stored credentials found - configuring hardcoded credentials");
-        
-        // Configure hardcoded network credentials
-        otOperationalDataset newDataset;
-        memset(&newDataset, 0, sizeof(otOperationalDataset));
-        
-        // Set Active Timestamp (required)
-        newDataset.mActiveTimestamp.mSeconds = 1;
-        newDataset.mActiveTimestamp.mTicks = 0;
-        newDataset.mActiveTimestamp.mAuthoritative = false;
-        newDataset.mComponents.mIsActiveTimestampPresent = true;
-        
-        // Set network name
-        const char *networkName = "OpenThread";
-        size_t length = strlen(networkName);
-        memcpy(newDataset.mNetworkName.m8, networkName, length);
-        newDataset.mComponents.mIsNetworkNamePresent = true;
-        
-        // Set PAN ID
-        newDataset.mPanId = 0x676b;
-        newDataset.mComponents.mIsPanIdPresent = true;
-        
-        // Set Extended PAN ID
-        uint8_t extPanId[] = {0xde, 0xad, 0x00, 0xbe, 0xef, 0x00, 0xca, 0xfe};
-        memcpy(newDataset.mExtendedPanId.m8, extPanId, sizeof(extPanId));
-        newDataset.mComponents.mIsExtendedPanIdPresent = true;
-        
-        // Set Network Key
-        uint8_t networkKey[] = {0xc7, 0x16, 0xd0, 0x75, 0x30, 0x43, 0xae, 0x2f,
-                                0x5b, 0x63, 0xc7, 0x1e, 0x3e, 0x51, 0xd7, 0xd0};
-        memcpy(newDataset.mNetworkKey.m8, networkKey, sizeof(networkKey));
-        newDataset.mComponents.mIsNetworkKeyPresent = true;
-        
-        // Set Channel
-        newDataset.mChannel = 11;
-        newDataset.mComponents.mIsChannelPresent = true;
-        
-        // Set Channel Mask
-        newDataset.mChannelMask = 0x07fff800;  // All channels
-        newDataset.mComponents.mIsChannelMaskPresent = true;
-        
-        // Set Security Policy
-        newDataset.mSecurityPolicy.mRotationTime = 672;
-        newDataset.mSecurityPolicy.mObtainNetworkKeyEnabled = true;
-        newDataset.mSecurityPolicy.mNativeCommissioningEnabled = true;
-        newDataset.mSecurityPolicy.mRoutersEnabled = true;
-        newDataset.mSecurityPolicy.mExternalCommissioningEnabled = true;
-        newDataset.mComponents.mIsSecurityPolicyPresent = true;
-        
-        // Apply the dataset
-        otError error = otDatasetSetActive(instance, &newDataset);
-        if (error == OT_ERROR_NONE) {
-            ESP_LOGI(TAG, "Hardcoded credentials configured and saved");
-        } else {
-            ESP_LOGE(TAG, "Failed to set dataset: %d", error);
-        }
-        
-        // Start Thread interface
-        otIp6SetEnabled(instance, true);
-        otThreadSetEnabled(instance, true);
-        ESP_LOGI(TAG, "Thread interface started - joining network");
-    }
-    
-    // Start LED blink task
-    xTaskCreate(led_blink_task, "led_blink", 2048, NULL, 5, NULL);
-    ESP_LOGI(TAG, "LED blink started: slow=disconnected, blue=connected");
-#else
-    // Configure as router (default) - only available with FTD
-    #if OPENTHREAD_FTD
-    otThreadSetRouterEligible(instance, true);
-    #endif
-    
-    // Always configure hardcoded network credentials for router
-    ESP_LOGI(TAG, "Configuring router with hardcoded network credentials");
-    
-    // First, clear any existing dataset in NVS to force new network formation
-    otThreadSetEnabled(instance, false);
-    otIp6SetEnabled(instance, false);
-    otInstanceErasePersistentInfo(instance);
-    ESP_LOGI(TAG, "Cleared existing network data from NVS");
-    
+    // Always set the dataset for child
     otOperationalDataset dataset;
     memset(&dataset, 0, sizeof(otOperationalDataset));
-    
-    // Set Active Timestamp
     dataset.mActiveTimestamp.mSeconds = 1;
-    dataset.mActiveTimestamp.mTicks = 0;
-    dataset.mActiveTimestamp.mAuthoritative = false;
-        dataset.mComponents.mIsActiveTimestampPresent = true;
-        
-        // Set network name
-        const char *networkName = "OpenThread";
-        size_t length = strlen(networkName);
-        memcpy(dataset.mNetworkName.m8, networkName, length);
-        dataset.mComponents.mIsNetworkNamePresent = true;
-        
-        // Set PAN ID
-        dataset.mPanId = 0x676b;
-        dataset.mComponents.mIsPanIdPresent = true;
-        
-        // Set Extended PAN ID
-        uint8_t extPanId[] = {0xde, 0xad, 0x00, 0xbe, 0xef, 0x00, 0xca, 0xfe};
-        memcpy(dataset.mExtendedPanId.m8, extPanId, sizeof(extPanId));
-        dataset.mComponents.mIsExtendedPanIdPresent = true;
-        
-        // Set Network Key
-        uint8_t networkKey[] = {0xc7, 0x16, 0xd0, 0x75, 0x30, 0x43, 0xae, 0x2f,
-                                0x5b, 0x63, 0xc7, 0x1e, 0x3e, 0x51, 0xd7, 0xd0};
-        memcpy(dataset.mNetworkKey.m8, networkKey, sizeof(networkKey));
-        dataset.mComponents.mIsNetworkKeyPresent = true;
-        
-        // Set Channel
-        dataset.mChannel = 11;
-        dataset.mComponents.mIsChannelPresent = true;
-        
-        // Set Channel Mask
-        dataset.mChannelMask = 0x07fff800;
-        dataset.mComponents.mIsChannelMaskPresent = true;
-        
-        // Set Security Policy
-        dataset.mSecurityPolicy.mRotationTime = 672;
-        dataset.mSecurityPolicy.mObtainNetworkKeyEnabled = true;
-        dataset.mSecurityPolicy.mNativeCommissioningEnabled = true;
-        dataset.mSecurityPolicy.mRoutersEnabled = true;
-        dataset.mSecurityPolicy.mExternalCommissioningEnabled = true;
-        dataset.mComponents.mIsSecurityPolicyPresent = true;
-        
-        // Make sure Thread is disabled before setting dataset
-        otThreadSetEnabled(instance, false);
-        otIp6SetEnabled(instance, false);
-        
-        // Apply the dataset
-        otError error = otDatasetSetActive(instance, &dataset);
-        if (error == OT_ERROR_NONE) {
-            ESP_LOGI(TAG, "Hardcoded network credentials configured");
-        } else {
-            ESP_LOGE(TAG, "Failed to set dataset: %d", error);
-        }
+    dataset.mComponents.mIsActiveTimestampPresent = true;
+    strcpy(dataset.mNetworkName.m8, "OpenThread");
+    dataset.mComponents.mIsNetworkNamePresent = true;
+    dataset.mPanId = 0x676b;
+    dataset.mComponents.mIsPanIdPresent = true;
+    // Add Network Key (16 bytes)
+    uint8_t networkKey[16] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
+    memcpy(dataset.mNetworkKey.m8, networkKey, sizeof(networkKey));
+    dataset.mComponents.mIsNetworkKeyPresent = true;
+    // Add Extended PAN ID (8 bytes)
+    uint8_t extPanId[8] = {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11};
+    memcpy(dataset.mExtendedPanId.m8, extPanId, sizeof(extPanId));
+    dataset.mComponents.mIsExtendedPanIdPresent = true;
+    dataset.mChannel = 15;
+    dataset.mComponents.mIsChannelPresent = true;
+    otError error = otDatasetSetActive(instance, &dataset);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to set active dataset: %d", error);
+    }
     
-    // Now start Thread interface for router with new credentials
-    otIp6SetEnabled(instance, true);
-    otThreadSetEnabled(instance, true);
-    
-    // Wait a moment for Thread to initialize, then force leader role
-    vTaskDelay(pdMS_TO_TICKS(500));
-    otError leaderError = otThreadBecomeLeader(instance);
-    if (leaderError == OT_ERROR_NONE) {
-        ESP_LOGI(TAG, "Forced device to become leader");
+    error = otIp6SetEnabled(instance, true);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to enable IP6: %d", error);
+    }
+    error = otThreadSetEnabled(instance, true);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to enable thread: %d", error);
     } else {
-        ESP_LOGI(TAG, "Leader promotion result: %d (will become leader after attach attempts)", leaderError);
+        ESP_LOGI(TAG, "Child thread enabled");
     }
     
-    // Initialize UDP socket for sending to child
-    init_udp_socket(instance);
+    esp_openthread_lock_release(); // RELEASE LOCK IMMEDIATELY
     
-    ESP_LOGI(TAG, "Configured as Router - Thread interface started with hardcoded credentials");
+    xTaskCreate(led_blink_task, "led_blink", 4096, NULL, 5, NULL);
+
+#else
+    // 1. Setup Network (Locked)
+    esp_openthread_lock_acquire(portMAX_DELAY);
+    otThreadSetEnabled(instance, false);
+    otInstanceErasePersistentInfo(instance); // Clear old data
     
-    // Wait a moment for network to form, then print credentials
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    otOperationalDataset ds;
+    memset(&ds, 0, sizeof(otOperationalDataset));
+    ds.mActiveTimestamp.mSeconds = 1;
+    ds.mComponents.mIsActiveTimestampPresent = true;
+    strcpy(ds.mNetworkName.m8, "OpenThread");
+    ds.mComponents.mIsNetworkNamePresent = true;
+    ds.mPanId = 0x676b;
+    ds.mComponents.mIsPanIdPresent = true;
+    ds.mChannel = 15;
+    ds.mComponents.mIsChannelPresent = true;
+    // Add Network Key (16 bytes)
+    uint8_t networkKey[16] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
+    memcpy(ds.mNetworkKey.m8, networkKey, sizeof(networkKey));
+    ds.mComponents.mIsNetworkKeyPresent = true;
+    // Add Extended PAN ID (8 bytes)
+    uint8_t extPanId[8] = {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11};
+    memcpy(ds.mExtendedPanId.m8, extPanId, sizeof(extPanId));
+    ds.mComponents.mIsExtendedPanIdPresent = true;
     
-    // Print network credentials for child devices to join (reuse dataset variable)
-    if (otDatasetGetActive(instance, &dataset) == OT_ERROR_NONE) {
-        ESP_LOGI(TAG, "=== Network Credentials for Child Devices ===");
-        
-        // Print Network Name
-        ESP_LOGI(TAG, "Network Name: %s", dataset.mNetworkName.m8);
-        
-        // Print PAN ID
-        ESP_LOGI(TAG, "PAN ID: 0x%04x", dataset.mPanId);
-        
-        // Print Extended PAN ID
-        ESP_LOG_BUFFER_HEX_LEVEL(TAG, dataset.mExtendedPanId.m8, OT_EXT_PAN_ID_SIZE, ESP_LOG_INFO);
-        
-        // Print Network Key
-        ESP_LOGI(TAG, "Network Key (use on child): ");
-        ESP_LOG_BUFFER_HEX_LEVEL(TAG, dataset.mNetworkKey.m8, OT_NETWORK_KEY_SIZE, ESP_LOG_INFO);
-        
-        // Print Channel
-        ESP_LOGI(TAG, "Channel: %d", dataset.mChannel);
-        
-        ESP_LOGI(TAG, "===========================================");
+    otError error = otDatasetSetActive(instance, &ds);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to set active dataset: %d", error);
     }
-    
-    // Configure UART for leader
+    otIp6SetEnabled(instance, true);
+    error = otThreadSetEnabled(instance, true);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to enable thread: %d", error);
+    }
+    esp_openthread_lock_release(); // RELEASE LOCK
+
+    // 2. Wait for stack to settle (Unlocked)
+    vTaskDelay(pdMS_TO_TICKS(500)); 
+
+    // 3. Promote to Leader (Locked)
+    esp_openthread_lock_acquire(portMAX_DELAY);
+    error = otThreadBecomeLeader(instance);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to become leader: %d", error);
+    }
+    esp_openthread_lock_release(); // RELEASE LOCK
+
+    // 4. Configure Hardware (No lock needed for local UART/GPIO)
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
@@ -488,42 +380,25 @@ void app_main(void)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
     };
-    
-    ESP_ERROR_CHECK(uart_driver_install(UART_NUM, UART_BUF_SIZE * 2, 0, 0, NULL, 0));
-    ESP_ERROR_CHECK(uart_param_config(UART_NUM, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(UART_NUM, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    
-    ESP_LOGI(TAG, "UART configured on RX:GPIO%d, TX:GPIO%d", UART_RX_PIN, UART_TX_PIN);
-    
-    // Configure GPIO 7 as output for UART control
+    uart_driver_install(UART_NUM, UART_BUF_SIZE * 2, 0, 0, NULL, 0);
+    uart_param_config(UART_NUM, &uart_config);
+    uart_set_pin(UART_NUM, UART_TX_PIN, UART_RX_PIN, -1, -1);
+
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << CONTROL_PIN),
         .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&io_conf);
-    gpio_set_level(CONTROL_PIN, 0);  // Initialize to LOW
-    ESP_LOGI(TAG, "GPIO %d configured as output (initialized to LOW)", CONTROL_PIN);
-    
-    // Start UART read task
+
+    // 5. Start Tasks
     xTaskCreate(uart_read_task, "uart_read", 4096, NULL, 5, NULL);
-    
-    // Start example task to send test data to child
-    xTaskCreate(send_data_example_task, "send_example", 2048, instance, 4, NULL);
-    
-    // Start LED blink task
-    xTaskCreate(led_blink_task, "led_blink", 2048, NULL, 5, NULL);
-    ESP_LOGI(TAG, "LED blink: slow=not ready, fast=ready for devices to join");
+    xTaskCreate(send_data_example_task, "send_example", 4096, instance, 4, NULL);
+    xTaskCreate(led_blink_task, "led_blink", 4096, NULL, 5, NULL);
+
 #endif
-    
-    esp_openthread_lock_release();
-    
+
+    // Final CLI initialization
 #if CONFIG_OPENTHREAD_CLI_ESP_EXTENSION
     esp_cli_custom_command_init();
-#endif
-#if CONFIG_OPENTHREAD_NETWORK_AUTO_START
-    ot_network_auto_start();
 #endif
 }
