@@ -65,6 +65,10 @@ static otUdpSocket sUdpSocket;
 static otIp6Address sChildAddr;
 static bool sChildAddrSet = false;
 
+// Global variables for child UDP receiving
+static otUdpSocket sReceiveSocket;
+static uint8_t sCurrentLedColor = 0x42;  // Start with blue ('B')
+
 // Function to check UART data and control GPIO 7
 void check_uart_and_control_pin(uint8_t *data, int len)
 {
@@ -99,6 +103,31 @@ void send_to_child(otInstance *instance, const uint8_t *data, uint16_t len)
         return;
     }
     
+    // Check if child is still connected by verifying our stored address is still valid
+    bool childStillConnected = false;
+    otChildInfo childInfo;
+    uint16_t childIndex = 0;
+    
+    while (otThreadGetChildInfoByIndex(instance, childIndex, &childInfo) == OT_ERROR_NONE) {
+        if (otThreadGetChildNextIp6Address(instance, childIndex, OT_CHILD_IP6_ADDRESS_ITERATOR_INIT, &sChildAddr) == OT_ERROR_NONE) {
+            if (memcmp(&sChildAddr, &childInfo.mExtAddress, sizeof(otIp6Address)) == 0) {
+                childStillConnected = true;
+                break;
+            }
+        }
+        childIndex++;
+    }
+    
+    if (!childStillConnected) {
+        ESP_LOGW(TAG, "Child no longer connected or address changed, clearing address");
+        sChildAddrSet = false;
+        return;
+    }
+    
+    char addrStr[OT_IP6_ADDRESS_STRING_SIZE];
+    otIp6AddressToString(&sChildAddr, addrStr, sizeof(addrStr));
+    ESP_LOGI(TAG, "Sending to child address: %s", addrStr);
+    
     otError error;
     otMessage *message = otUdpNewMessage(instance, NULL);
     if (message == NULL) {
@@ -117,6 +146,7 @@ void send_to_child(otInstance *instance, const uint8_t *data, uint16_t len)
     memset(&messageInfo, 0, sizeof(otMessageInfo));
     messageInfo.mPeerAddr = sChildAddr;
     messageInfo.mPeerPort = 12345;
+    messageInfo.mSockPort = 12345;  // Set local port
     
     error = otUdpSend(instance, &sUdpSocket, message, &messageInfo);
     if (error != OT_ERROR_NONE) {
@@ -127,12 +157,114 @@ void send_to_child(otInstance *instance, const uint8_t *data, uint16_t len)
     }
 }
 
+// UDP receive handler for child device
+void handleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
+{
+    uint16_t length = otMessageGetLength(aMessage);
+    
+    if (length > 0 && length <= 256) {  // Reasonable limit to prevent stack overflow
+        uint8_t data[256];  // Fixed size buffer
+        
+        otError error = otMessageRead(aMessage, 0, data, length);
+        if (error == OT_ERROR_NONE) {
+            ESP_LOGI(TAG, "Received UDP data: 0x%02X", data[0]);
+            
+            // Check for color commands
+            if (data[0] == 0x42) {  // 'B' for blue
+                sCurrentLedColor = 0x42;
+                ESP_LOGI(TAG, "LED color changed to BLUE");
+            } else if (data[0] == 0x47) {  // 'G' for green
+                sCurrentLedColor = 0x47;
+                ESP_LOGI(TAG, "LED color changed to GREEN");
+            }
+        } else {
+            ESP_LOGE(TAG, "Failed to read UDP message: %d", error);
+        }
+    } else {
+        ESP_LOGW(TAG, "Received UDP message with invalid length: %d", length);
+    }
+    
+    otMessageFree(aMessage);
+}
+
+// Initialize UDP receive socket for child
+void init_receive_socket(otInstance *instance)
+{
+    otError error = otUdpOpen(instance, &sReceiveSocket, handleUdpReceive, NULL);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to open receive UDP socket: %d", error);
+        return;
+    }
+    
+    otSockAddr sockaddr;
+    memset(&sockaddr, 0, sizeof(sockaddr));
+    sockaddr.mPort = 12345;  // Same port as sending
+    
+    error = otUdpBind(instance, &sReceiveSocket, &sockaddr, OT_NETIF_THREAD_HOST);
+    if (error != OT_ERROR_NONE) {
+        ESP_LOGE(TAG, "Failed to bind receive UDP socket: %d", error);
+        return;
+    }
+    
+    ESP_LOGI(TAG, "Receive UDP socket initialized on port 12345");
+}
 // Set the child's IPv6 address for sending data
 void set_child_address(const otIp6Address *addr)
 {
     sChildAddr = *addr;
     sChildAddrSet = true;
     ESP_LOGI(TAG, "Child address set");
+}
+
+// Set child address from string (for manual testing)
+void set_child_address_from_string(const char *addrStr)
+{
+    otIp6Address addr;
+    if (otIp6AddressFromString(addrStr, &addr) == OT_ERROR_NONE) {
+        set_child_address(&addr);
+        ESP_LOGI(TAG, "Child address set manually to: %s", addrStr);
+    } else {
+        ESP_LOGE(TAG, "Invalid IPv6 address format: %s", addrStr);
+    }
+}
+
+
+
+// Find and set child address automatically
+void find_and_set_child_address(otInstance *instance)
+{
+    otChildInfo childInfo;
+    uint16_t childIndex = 0;
+    bool foundChild = false;
+    
+    ESP_LOGI(TAG, "Looking for child devices...");
+    
+    // Look for all children
+    while (otThreadGetChildInfoByIndex(instance, childIndex, &childInfo) == OT_ERROR_NONE) {
+        ESP_LOGI(TAG, "Found child %d with RLOC16: 0x%04x, Timeout: %d seconds", 
+                 childIndex, childInfo.mRloc16, childInfo.mTimeout);
+        
+        if (otThreadGetChildNextIp6Address(instance, childIndex, OT_CHILD_IP6_ADDRESS_ITERATOR_INIT, &sChildAddr) == OT_ERROR_NONE) {
+            char addrStr[OT_IP6_ADDRESS_STRING_SIZE];
+            otIp6AddressToString(&sChildAddr, addrStr, sizeof(addrStr));
+            ESP_LOGI(TAG, "Child %d IPv6 address: %s", childIndex, addrStr);
+            
+            // Use the first valid child we find
+            if (!foundChild) {
+                set_child_address(&sChildAddr);
+                ESP_LOGI(TAG, "Using child %d for communication", childIndex);
+                foundChild = true;
+            }
+        } else {
+            ESP_LOGW(TAG, "Failed to get IPv6 address for child %d", childIndex);
+        }
+        
+        childIndex++;
+    }
+    
+    if (!foundChild) {
+        ESP_LOGW(TAG, "No child devices found with valid IPv6 addresses");
+    }
 }
 
 // LED blink task - works for both router and end device using RGB LED
@@ -182,8 +314,12 @@ void led_blink_task(void *pvParameters)
             led_strip_refresh(led_strip);
             vTaskDelay(pdMS_TO_TICKS(100));
         } else if (role == OT_DEVICE_ROLE_CHILD) {
-            // End device connected: Medium blue blink (400ms cycle)
-            led_strip_set_pixel(led_strip, 0, 0, 0, 50);  // Blue
+            // End device connected: Use commanded color (default blue, can be changed by parent)
+            if (sCurrentLedColor == 0x47) {  // Green
+                led_strip_set_pixel(led_strip, 0, 0, 50, 0);  // Green
+            } else {  // Blue (default)
+                led_strip_set_pixel(led_strip, 0, 0, 0, 50);  // Blue
+            }
             led_strip_refresh(led_strip);
             vTaskDelay(pdMS_TO_TICKS(200));
             led_strip_clear(led_strip);
@@ -226,21 +362,60 @@ void uart_read_task(void *pvParameters)
     free(data);
 }
 
-// Example task: Send test data to child every 10 seconds
+// Example task: Send color change commands to child every 5 seconds
 void send_data_example_task(void *pvParameters)
 {
-    // otInstance *instance = (otInstance *)pvParameters;
-    // uint8_t test_data[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F};  // "Hello"
+    otInstance *instance = (otInstance *)pvParameters;
+    bool blue_color = true;  // Start with blue
     
     vTaskDelay(pdMS_TO_TICKS(5000));  // Wait 5 seconds before first send
     
-    // while (1) {
-    //     esp_openthread_lock_acquire(portMAX_DELAY);
-    //     send_to_child(instance, test_data, sizeof(test_data));
-    //     esp_openthread_lock_release();
-    //     
-    //     vTaskDelay(pdMS_TO_TICKS(10000));  // Send every 10 seconds
-    // }
+    while (1) {
+        // Check if we have a child address, if not try to find one
+        if (!sChildAddrSet) {
+            esp_openthread_lock_acquire(portMAX_DELAY);
+            find_and_set_child_address(instance);
+            esp_openthread_lock_release();
+        }
+        
+        if (sChildAddrSet) {
+            // Check if child is still connected before sending
+            esp_openthread_lock_acquire(portMAX_DELAY);
+            bool childStillConnected = false;
+            otChildInfo checkInfo;
+            uint16_t checkIndex = 0;
+            
+            while (otThreadGetChildInfoByIndex(instance, checkIndex, &checkInfo) == OT_ERROR_NONE) {
+                otIp6Address checkAddr;
+                if (otThreadGetChildNextIp6Address(instance, checkIndex, OT_CHILD_IP6_ADDRESS_ITERATOR_INIT, &checkAddr) == OT_ERROR_NONE) {
+                    if (memcmp(&sChildAddr, &checkAddr, sizeof(otIp6Address)) == 0) {
+                        childStillConnected = true;
+                        break;
+                    }
+                }
+                checkIndex++;
+            }
+            esp_openthread_lock_release();
+            
+            if (!childStillConnected) {
+                ESP_LOGW(TAG, "Child disconnected, will try to rediscover");
+                sChildAddrSet = false;
+            } else {
+                // Child is connected, send the color command
+                uint8_t color_command = blue_color ? 0x42 : 0x47;  // 'B' for blue, 'G' for green
+                
+                esp_openthread_lock_acquire(portMAX_DELAY);
+                send_to_child(instance, &color_command, 1);
+                esp_openthread_lock_release();
+                
+                ESP_LOGI(TAG, "Sent color command: %c (%s)", color_command, blue_color ? "BLUE" : "GREEN");
+            }
+        }
+        
+        blue_color = !blue_color;  // Toggle for next iteration
+        
+        vTaskDelay(pdMS_TO_TICKS(5000));  // Send every 5 seconds
+    }
 }
 
 void app_main(void)
@@ -320,6 +495,9 @@ void app_main(void)
         ESP_LOGI(TAG, "Child thread enabled");
     }
     
+    // Initialize UDP receive socket for child
+    init_receive_socket(instance);
+    
     esp_openthread_lock_release(); // RELEASE LOCK IMMEDIATELY
     
     xTaskCreate(led_blink_task, "led_blink", 4096, NULL, 5, NULL);
@@ -371,7 +549,10 @@ void app_main(void)
     }
     esp_openthread_lock_release(); // RELEASE LOCK
 
-    // 4. Configure Hardware (No lock needed for local UART/GPIO)
+    // 4. Initialize UDP socket for sending to child
+    init_udp_socket(instance);
+
+    // 5. Configure Hardware (No lock needed for local UART/GPIO)
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
