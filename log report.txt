@@ -1,54 +1,96 @@
- (6143) ot_esp_cli: Failed to send UDP message: 7
-W (6153) ot_esp_cli: Send skipped or failed
-I (7133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (9133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (11133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (11153) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
-E (11153) ot_esp_cli: Failed to send UDP message: 7
-W (11153) ot_esp_cli: Send skipped or failed
-I (13133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (15133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (16153) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
-E (16153) ot_esp_cli: Failed to send UDP message: 7
-W (16153) ot_esp_cli: Send skipped or failed
-I (17133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (19133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (21133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (21153) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
-E (21153) ot_esp_cli: Failed to send UDP message: 7
-W (21153) ot_esp_cli: Send skipped or failed
-I (23133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (25133) ot_esp_cli: UART: Waiting for data on GPIO4...
-I (26153) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
-E (26153) ot_esp_cli: Failed to send UDP message: 7
-W (26153) ot_esp_cli: Send skipped or failed
-I (27133) ot_esp_cli: UART: Waiting for data on GPIO4...
-------------------- LOG POUR LE CHIND --------------------------------------------
-I (417) sleep_gpio: Configure to isolate all GPIO pins in sleep state
-I (423) sleep_gpio: Enable automatic switching of GPIO sleep configuration
-I (429) coexist: coex firmware version: 7260f71
-I (433) coexist: coexist rom version 5b8dcfa
-I (438) main_task: Started on CPU0
-I (438) main_task: Calling app_main()
-> I (448) OPENTHREAD: Host connection mode none
-I (448) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
-I (528) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
-I(528) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
-I(528) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
-I(538) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0xd401, extaddr:16946a3d5940d725, role:child, mode:0x0c, version:5, keyseq:0x0, ...
-I(538) OPENTHREAD:[I] Settings------: ... pid:0x494eb7be, mlecntr:0x1ca10, maccntr:0x1c908, mliid:11d8f2f9ff34a0a1}
-I(558) OPENTHREAD:[I] Settings------: Read ParentInfo {extaddr:42073b56228bc1fa, version:5}
-I (558) OPENTHREAD: OpenThread attached to netif
-> I(578) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
-I (578) ot_esp_cli: Child thread enabled
-I (578) ot_esp_cli: Receive UDP socket initialized on port 12345
-I (588) OT_STATE: netif up
-I (588) ot_esp_cli: RGB LED task running on GPIO 8
-I (588) ot_esp_cli: Device role: 1 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (598) main_task: Returned from app_main()
-I(628) OPENTHREAD:[N] Mle-----------: Role detached -> child
-W(628) OPENTHREAD:[W] Mle-----------: Failed to process Child Update Response as child: NotFound
-I (21198) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (41198) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (61198) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (81198) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
+I (60) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (67) boot:  2 factory          factory app      00 00 00010000 00140000
+I (73) boot: End of partition table
+I (77) esp_image: segment 0: paddr=00010020 vaddr=420e0020 size=3acd4h (240852) map
+I (129) esp_image: segment 1: paddr=0004acfc vaddr=40800000 size=0531ch ( 21276) load
+I (134) esp_image: segment 2: paddr=00050020 vaddr=42000020 size=d8dech (888300) map
+I (301) esp_image: segment 3: paddr=00128e14 vaddr=4080531c size=0b1b8h ( 45496) load
+I (312) esp_image: segment 4: paddr=00133fd4 vaddr=408104e0 size=02d24h ( 11556) load
+I (319) boot: Loaded app from partition at offset 0x10000
+I (319) boot: Disabling RNG early entropy source...
+I (331) cpu_start: Unicore app
+I (340) cpu_start: GPIO 17 and 16 are used as console UART I/O pins
+I (340) cpu_start: Pro cpu start user code
+I (340) cpu_start: cpu freq: 160000000 Hz
+I (342) app_init: Application information:
+I (346) app_init: Project name:     Thread
+I (350) app_init: App version:      38398f2
+I (353) app_init: Compile time:     Mar 29 2026 17:16:08
+I (358) app_init: ELF file SHA256:  7e815c5a7...
+--- Warning: Checksum mismatch between flashed and built applications. Checksum of built application is 67c9ac745c28769c9ff605ed777887784489f05d5b01bb973e05affd6416387d
+I (363) app_init: ESP-IDF:          v6.0-beta1-1149-gd01bc98339
+I (368) efuse_init: Min chip rev:     v0.0
+I (372) efuse_init: Max chip rev:     v0.99
+I (376) efuse_init: Chip rev:         v0.2
+I (380) heap_init: Initializing. RAM available for dynamic allocation:
+I (386) heap_init: At 4081BC90 len 00060980 (386 KiB): RAM
+I (392) heap_init: At 4087C610 len 00002F54 (11 KiB): RAM
+I (397) heap_init: At 50000000 len 00003FE8 (15 KiB): RTCRAM
+I (403) spi_flash: detected chip: generic
+I (406) spi_flash: flash io: dio
+W (409) spi_flash: Detected size(8192k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
+I (421) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (427) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (434) coexist: coex firmware version: 7260f71
+I (438) coexist: coexist rom version 5b8dcfa
+I (442) main_task: Started on CPU0
+I (442) main_task: Calling app_main()
+> I (452) OPENTHREAD: Host connection mode none
+I (452) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
+I (502) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
+I(512) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
+I(512) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
+I(512) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0xd400, extaddr:42073b56228bc1fa, role:leader, mode:0x0f, version:5, keyseq:0x0, ...
+I(522) OPENTHREAD:[I] Settings------: ... pid:0x33a79b89, mlecntr:0xa845, maccntr:0xa7f8, mliid:1d9eaf4ca2693836}
+I(532) OPENTHREAD:[I] Settings------: Read ChildInfo {rloc:0xd401, extaddr:16946a3d5940d725, timeout:60, mode:0x0c, version:5}
+I (542) OPENTHREAD: OpenThread attached to netif
+> I(562) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
+I (562) ot_esp_cli: UDP send socket initialized
+I (562) OT_STATE: netif up
+I(1072) OPENTHREAD:[N] RouterTable---: Allocate router id 53
+I(1072) OPENTHREAD:[N] Mle-----------: Role detached -> leader
+I(1072) OPENTHREAD:[N] Mle-----------: Partition ID 0x14cd9525
+I (1082) ot_esp_cli: RGB LED task running on GPIO 8
+I (1082) main_task: Returned from app_main()
+I (1102) ot_esp_cli: Device role: 4 (leader)
+I (3082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (5082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (6082) ot_esp_cli: Found child 0 with RLOC16: 0xd401, timeout: 60 s
+I (6082) ot_esp_cli: Child 0 IPv6 address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+I (6082) ot_esp_cli: Child address set to fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+I (6082) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (6092) ot_esp_cli: Failed to send UDP message: 7
+W (6102) ot_esp_cli: Send skipped or failed
+I (7082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (9082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (11082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (11102) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (11102) ot_esp_cli: Failed to send UDP message: 7
+W (11102) ot_esp_cli: Send skipped or failed
+I (13082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (15082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (16102) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (16102) ot_esp_cli: Failed to send UDP message: 7
+W (16102) ot_esp_cli: Send skipped or failed
+I (17082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (19082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (21082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (21102) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (21102) ot_esp_cli: Failed to send UDP message: 7
+W (21102) ot_esp_cli: Send skipped or failed
+I (23082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (25082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (26102) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (26102) ot_esp_cli: Failed to send UDP message: 7
+W (26102) ot_esp_cli: Send skipped or failed
+I (27082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (29082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (31082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (31102) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (31102) ot_esp_cli: Failed to send UDP message: 7
+W (31102) ot_esp_cli: Send skipped or failed
+I (33082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (35082) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (36102) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (36102) ot_esp_cli: Failed to send UDP message: 7
+W (36102) ot_esp_cli: Send skipped or failed
