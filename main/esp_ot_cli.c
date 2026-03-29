@@ -174,7 +174,7 @@ static bool init_receive_socket_locked(otInstance *instance)
     memset(&sockaddr, 0, sizeof(sockaddr));
     sockaddr.mPort = UDP_PORT;
 
-    error = otUdpBind(instance, &sReceiveSocket, &sockaddr, OT_NETIF_THREAD_INTERNAL);
+    error = otUdpBind(instance, &sReceiveSocket, &sockaddr, OT_NETIF_THREAD_HOST);
     if (error != OT_ERROR_NONE) {
         ESP_LOGE(TAG, "Failed to bind receive UDP socket: %d", error);
         otUdpClose(instance, &sReceiveSocket);
@@ -297,7 +297,7 @@ static bool send_to_child_locked(otInstance *instance, const uint8_t *data, uint
     memset(&messageInfo, 0, sizeof(messageInfo));
     messageInfo.mPeerAddr = sChildAddr;
     messageInfo.mPeerPort = UDP_PORT;
-    messageInfo.mSockPort = 0;
+    messageInfo.mSockPort = UDP_PORT;
 
     error = otUdpSend(instance, &sUdpSocket, message, &messageInfo);
     if (error != OT_ERROR_NONE) {
