@@ -1,226 +1,45 @@
-I (77) boot: End of partition table
-I (80) esp_image: segment 0: paddr=00010020 vaddr=420e0020 size=3ad1ch (240924) map
-I (177) esp_image: segment 1: paddr=0004ad44 vaddr=40800000 size=052d4h ( 21204) load
-I (187) esp_image: segment 2: paddr=00050020 vaddr=42000020 size=d8cd8h (888024) map
-I (516) esp_image: segment 3: paddr=00128d00 vaddr=408052d4 size=0b200h ( 45568) load
-I (536) esp_image: segment 4: paddr=00133f08 vaddr=408104e0 size=02d2ch ( 11564) load
-I (550) boot: Loaded app from partition at offset 0x10000
-I (550) boot: Disabling RNG early entropy source...
-I (562) cpu_start: Unicore app
-I (571) cpu_start: GPIO 17 and 16 are used as console UART I/O pins
-I (571) cpu_start: Pro cpu start user code
-I (571) cpu_start: cpu freq: 160000000 Hz
-I (573) app_init: Application information:
-I (577) app_init: Project name:     Thread
-I (581) app_init: App version:      c9a2699-dirty
-I (585) app_init: Compile time:     Mar 29 2026 00:29:10
-I (590) app_init: ELF file SHA256:  ce9f0eb67...
-I (595) app_init: ESP-IDF:          v6.0-beta1-1149-gd01bc98339
-I (600) efuse_init: Min chip rev:     v0.0
-I (604) efuse_init: Max chip rev:     v0.99
-I (608) efuse_init: Chip rev:         v0.2
-I (612) heap_init: Initializing. RAM available for dynamic allocation:
-I (618) heap_init: At 4081BC90 len 00060980 (386 KiB): RAM
-I (623) heap_init: At 4087C610 len 00002F54 (11 KiB): RAM
-I (628) heap_init: At 50000000 len 00003FE8 (15 KiB): RTCRAM
-I (635) spi_flash: detected chip: generic
-I (638) spi_flash: flash io: dio
-W (640) spi_flash: Detected size(8192k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
-I (653) sleep_gpio: Configure to isolate all GPIO pins in sleep state
-I (659) sleep_gpio: Enable automatic switching of GPIO sleep configuration
-I (666) coexist: coex firmware version: 7260f71
-I (670) coexist: coexist rom version 5b8dcfa
-I (674) main_task: Started on CPU0
-I (674) main_task: Calling app_main()
-> I (684) OPENTHREAD: Host connection mode none
-I (684) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
-I (734) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
-I(734) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
-I(744) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
-I(744) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0x4c00, extaddr:8e8327979776a560, role:leader, mode:0x0f, version:5, keyseq:0x0, ...
-I(754) OPENTHREAD:[I] Settings------: ... pid:0x2af1bfe, mlecntr:0x177c, maccntr:0x1770, mliid:a1e55ac079afc049}
-I (764) OPENTHREAD: OpenThread attached to netif
-> I(794) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
-I (794) OT_STATE: netif up
-I(1304) OPENTHREAD:[N] RouterTable---: Allocate router id 19
-I(1304) OPENTHREAD:[N] Mle-----------: Role detached -> leader
-I(1304) OPENTHREAD:[N] Mle-----------: Partition ID 0x2b67a170
-I (1304) ot_esp_cli: UDP socket initialized
-I (1324) ot_esp_cli: RGB LED task running on GPIO 8
-I (1324) ot_esp_cli: Device role: 4 (leader)
-I (1324) main_task: Returned from app_main()
-I (3324) ot_esp_cli: UART: Waiting for data on GPIO4...
-
-PS C:\Users\owena\tmp\Thread-test> $env:IDF_PATH = 'C:\Users\owena\esp\v6.0\esp-idf';
-PS C:\Users\owena\tmp\Thread-test>  & 'C:\Users\owena\.espressif\python_env\idf6.0_py3.11_env\Scripts\python.exe' 'C:\Users\owena\esp\v6.0\esp-idf\tools\idf_monitor.py' -p COM7 -b 115200 --toolchain-prefix riscv32-esp-elf- --make '''C:\Users\owena\.espressif\python_env\idf6.0_py3.11_env\Scripts\python.exe'' ''C:\Users\owena\esp\v6.0\esp-idf\tools\idf.py''' --target esp32c6 'c:\Users\owena\tmp\Thread-test\build\Thread.elf'
---- Warning: GDB cannot open serial ports accessed as COMx
---- Using \\.\COM7 instead...
---- esp-idf-monitor 1.9.0 on \\.\COM7 115200
---- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
-:0x1 (POWERON),boot:0xc (SPI_FAST_FLASH_BOOT)
-SPIWP:0xee
-mode:DIO, clock div:2
-load:0x40875730,len:0x175c
-load:0x4086b910,len:0xedc
-load:0x4086e610,len:0x3244
-entry 0x4086b91a
-I (23) boot: ESP-IDF v6.0-beta1-1149-gd01bc98339 2nd stage bootloader
-I (24) boot: compile time Mar 29 2026 00ESP-ROM:esp32c6-20220919
-Build:Sep 19 2022
-rst:0x1 (POWERON),boot:0xc (SPI_FAST_FLASH_BOOT)
-SPIWP:0xee
-mode:DIO, clock div:2
-load:0x40875730,len:0x175c
-load:0x4086b910,len:0xedc
-load:0x4086e610,len:0x3244
-entry 0x4086b91a
-I (23) boot: ESP-IDF v6.0-beta1-1149-gd01bc98339 2nd stage bootloader
-I (24) boot: compile time Mar 29 2026 00:15:54
-I (24) boot: chip revision: v0.2
-I (25) boot: efuse block revision: v0.3
-I (29) boot.esp32c6: SPI Speed      : 80MHz
-I (33) boot.esp32c6: SPI Mode       : DIO
-I (36) boot.esp32c6: SPI Flash Size : 2MB
-I (40) boot: Enabling RNG early entropy source...
-I (45) boot: Partition Table:
-I (47) boot: ## Label            Usage          Type ST Offset   Length
-I (54) boot:  0 nvs              WiFi data        01 02 00009000 00006000
-I (60) boot:  1 phy_init         RF data          01 01 0000f000 00001000
-I (67) boot:  2 factory          factory app      00 00 00010000 00140000
-I (73) boot: End of partition table
-I (77) esp_image: segment 0: paddr=00010020 vaddr=420d8020 size=3978ch (235404) map
-I (128) esp_image: segment 1: paddr=000497b4 vaddr=40800000 size=06864h ( 26724) load
-I (135) esp_image: segment 2: paddr=00050020 vaddr=42000020 size=d3e84h (867972) map
-I (298) esp_image: segment 3: paddr=00123eac vaddr=40806864 size=08df0h ( 36336) load
-I (306) esp_image: segment 4: paddr=0012cca4 vaddr=4080f660 size=02d18h ( 11544) load
-I (313) boot: Loaded app from partition at offset 0x10000
-I (313) boot: Disabling RNG early entropy source...
-I (325) cpu_start: Unicore app
-I (334) cpu_start: GPIO 17 and 16 are used as console UART I/O pins
-I (335) cpu_start: Pro cpu start user code
-I (335) cpu_start: cpu freq: 160000000 Hz
-I (337) app_init: Application information:
-I (340) app_init: Project name:     Thread
-I (344) app_init: App version:      c9a2699-dirty
-I (349) app_init: Compile time:     Mar 29 2026 00:29:10
-I (354) app_init: ELF file SHA256:  6dc33cf9a...
---- Warning: Checksum mismatch between flashed and built applications. Checksum of built application is ce9f0eb67503c32b0d48a3e60241cca6ea1752ca8194815cbf854bde82db0ed2
-I (358) app_init: ESP-IDF:          v6.0-beta1-1149-gd01bc98339
-I (364) efuse_init: Min chip rev:     v0.0
-I (367) efuse_init: Max chip rev:     v0.99
-I (371) efuse_init: Chip rev:         v0.2
-I (375) heap_init: Initializing. RAM available for dynamic allocation:
-I (382) heap_init: At 4081ADF0 len 00061820 (390 KiB): RAM
-I (387) heap_init: At 4087C610 len 00002F54 (11 KiB): RAM
-I (392) heap_init: At 50000000 len 00003FE8 (15 KiB): RTCRAM
-I (398) spi_flash: detected chip: generic
-I (401) spi_flash: flash io: dio
-W (404) spi_flash: Detected size(8192k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
-I (416) sleep_gpio: Configure to isolate all GPIO pins in sleep state
-I (422) sleep_gpio: Enable automatic switching of GPIO sleep configuration
-I (429) coexist: coex firmware version: 7260f71
-I (433) coexist: coexist rom version 5b8dcfa
-I (438) main_task: Started on CPU0
-I (438) main_task: Calling app_main()
-> I (448) OPENTHREAD: Host connection mode none
-I (448) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
-I (528) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
-I(528) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
-I(528) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
-I(538) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0x4c01, extaddr:16946a3d5940d725, role:child, mode:0x0c, version:5, keyseq:0x0, ...
-I(548) OPENTHREAD:[I] Settings------: ... pid:0x6e0b444e, mlecntr:0xfa7c, maccntr:0xfa00, mliid:11d8f2f9ff34a0a1}
-I(558) OPENTHREAD:[I] Settings------: Read ParentInfo {extaddr:8e8327979776a560, version:5}
-I (558) OPENTHREAD: OpenThread attached to netif
-> I(588) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
-I (588) ot_esp_cli: Child thread enabled
-I (588) ot_esp_cli: Receive UDP socket initialized on port 12345
-I (598) OT_STATE: netif up
-I (608) ot_esp_cli: RGB LED task running on GPIO 8
-I (608) ot_esp_cli: Device role: 1 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (608) main_task: Returned from app_main()
-I(4668) OPENTHREAD:[N] Mle-----------: RLOC16 4c01 -> fffe
-I(5248) OPENTHREAD:[N] Mle-----------: Attach attempt 1, AnyPartition reattaching with Active Dataset
-I(6058) OPENTHREAD:[N] Mle-----------: RLOC16 fffe -> 4c01
-I(6058) OPENTHREAD:[N] Mle-----------: Role detached -> child
-I (24208) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-ESP-ROM:esp32c6-20220919
-Build:Sep 19 2022
-rst:0x1 (POWERON),boot:0xc (SPI_FAST_FLASH_BOOT)
-SPIWP:0xee
-mode:DIO, clock div:2
-load:0x40875730,len:0x175c
-load:0x4086b910,len:0xedc
-load:0x4086e610,len:0x3244
-entry 0x4086b91a
-I (23) boot: ESP-IDF v6.0-beta1-1149-gd01bc98339 2nd stage bootloader
-I (24) boot: compile time Mar 29 2026 00:15:54
-I (24) boot: chip revision: v0.2
-I (25) boot: efuse block revision: v0.3
-I (29) boot.esp32c6: SPI Speed      : 80MHz
-I (33) boot.esp32c6: SPI Mode       : DIO
-I (36) boot.esp32c6: SPI Flash Size : 2MB
-I (40) boot: Enabling RNG early entropy source...
-I (45) boot: Partition Table:
-I (47) boot: ## Label            Usage          Type ST Offset   Length
-I (54) boot:  0 nvs              WiFi data        01 02 00009000 00006000
-I (60) boot:  1 phy_init         RF data          01 01 0000f000 00001000
-I (67) boot:  2 factory          factory app      00 00 00010000 00140000
-I (73) boot: End of partition table
-I (77) esp_image: segment 0: paddr=00010020 vaddr=420d8020 size=3978ch (235404) map
-I (128) esp_image: segment 1: paddr=000497b4 vaddr=40800000 size=06864h ( 26724) load
-I (135) esp_image: segment 2: paddr=00050020 vaddr=42000020 size=d3e84h (867972) map
-I (298) esp_image: segment 3: paddr=00123eac vaddr=40806864 size=08df0h ( 36336) load
-I (306) esp_image: segment 4: paddr=0012cca4 vaddr=4080f660 size=02d18h ( 11544) load
-I (313) boot: Loaded app from partition at offset 0x10000
-I (313) boot: Disabling RNG early entropy source...
-I (325) cpu_start: Unicore app
-I (334) cpu_start: GPIO 17 and 16 are used as console UART I/O pins
-I (335) cpu_start: Pro cpu start user code
-I (335) cpu_start: cpu freq: 160000000 Hz
-I (337) app_init: Application information:
-I (340) app_init: Project name:     Thread
-I (344) app_init: App version:      c9a2699-dirty
-I (349) app_init: Compile time:     Mar 29 2026 00:29:10
-I (354) app_init: ELF file SHA256:  6dc33cf9a...
---- Warning: Checksum mismatch between flashed and built applications. Checksum of built application is ce9f0eb67503c32b0d48a3e60241cca6ea1752ca8194815cbf854bde82db0ed2
-I (358) app_init: ESP-IDF:          v6.0-beta1-1149-gd01bc98339
-I (364) efuse_init: Min chip rev:     v0.0
-I (367) efuse_init: Max chip rev:     v0.99
-I (371) efuse_init: Chip rev:         v0.2
-I (375) heap_init: Initializing. RAM available for dynamic allocation:
-I (382) heap_init: At 4081ADF0 len 00061820 (390 KiB): RAM
-I (387) heap_init: At 4087C610 len 00002F54 (11 KiB): RAM
-I (392) heap_init: At 50000000 len 00003FE8 (15 KiB): RTCRAM
-I (398) spi_flash: detected chip: generic
-I (401) spi_flash: flash io: dio
-W (404) spi_flash: Detected size(8192k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
-I (416) sleep_gpio: Configure to isolate all GPIO pins in sleep state
-I (422) sleep_gpio: Enable automatic switching of GPIO sleep configuration
-I (429) coexist: coex firmware version: 7260f71
-I (433) coexist: coexist rom version 5b8dcfa
-I (438) main_task: Started on CPU0
-I (438) main_task: Calling app_main()
-> I (448) OPENTHREAD: Host connection mode none
-I (448) phy_init: phy_version 343,b513b46,Nov 14 2025,16:34:12
-I (528) phy: libbtbb version: c493933, Nov 14 2025, 16:34:25
-I(528) OPENTHREAD:[I] CslTxScheduler: Set frame request ahead: 20000 usec
-I(528) OPENTHREAD:[I] ChildSupervsn-: Timeout: 0 -> 190
-I(538) OPENTHREAD:[I] Settings------: Read NetworkInfo {rloc:0x4c01, extaddr:16946a3d5940d725, role:child, mode:0x0c, version:5, keyseq:0x0, ...
-I(538) OPENTHREAD:[I] Settings------: ... pid:0x2b67a170, mlecntr:0xfe6a, maccntr:0xfde8, mliid:11d8f2f9ff34a0a1}
-I(558) OPENTHREAD:[I] Settings------: Read ParentInfo {extaddr:8e8327979776a560, version:5}
-I (558) OPENTHREAD: OpenThread attached to netif
-> I(578) OPENTHREAD:[N] Mle-----------: Role disabled -> detached
-I (578) ot_esp_cli: Child thread enabled
-I (578) ot_esp_cli: Receive UDP socket initialized on port 12345
-I (588) OT_STATE: netif up
-I (588) ot_esp_cli: RGB LED task running on GPIO 8
-I (588) ot_esp_cli: Device role: 1 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
-I (598) main_task: Returned from app_main()
-I(1648) OPENTHREAD:[N] Mle-----------: Role detached -> child
-W(1648) OPENTHREAD:[W] Mle-----------: Failed to process Child Update Response as child: NotFound
-I(15248) OPENTHREAD:[N] Mle-----------: Role child -> detached
-I(15248) OPENTHREAD:[N] Mle-----------: RLOC16 4c01 -> fffe
-I(15358) OPENTHREAD:[N] Mle-----------: Attach attempt 1, AnyPartition 
-I(16158) OPENTHREAD:[N] Mle-----------: RLOC16 fffe -> 4c01
-I(16158) OPENTHREAD:[N] Mle-----------: Role detached -> child
-I (22398) ot_esp_cli: Device role: 2 (0=disabled, 1=detached, 2=child, 3=router, 4=leader)
+I (1083) ot_esp_cli: RGB LED task running on GPIO 8
+I (1083) main_task: Returned from app_main()
+I (1103) ot_esp_cli: Device role: 4 (leader)
+I (3083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (5083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (6083) ot_esp_cli: Found child 0 with RLOC16: 0xd402, timeout: 60 s
+I (6083) ot_esp_cli: Child 0 IPv6 address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+I (6083) ot_esp_cli: Child address set to fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+I (6083) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (6093) ot_esp_cli: Failed to send UDP message: 7
+W (6103) ot_esp_cli: Send skipped or failed
+I (7083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (9083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (11083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (11103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (11103) ot_esp_cli: Failed to send UDP message: 7
+W (11103) ot_esp_cli: Send skipped or failed
+I (13083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (15083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (16103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (16103) ot_esp_cli: Failed to send UDP message: 7
+W (16103) ot_esp_cli: Send skipped or failed
+I (17083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (19083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (21083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (21103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (21103) ot_esp_cli: Failed to send UDP message: 7
+W (21103) ot_esp_cli: Send skipped or failed
+I (23083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (25083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (26103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (26103) ot_esp_cli: Failed to send UDP message: 7
+W (26103) ot_esp_cli: Send skipped or failed
+I (27083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (29083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (31083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (31103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (31103) ot_esp_cli: Failed to send UDP message: 7
+W (31103) ot_esp_cli: Send skipped or failed
+I (33083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (35083) ot_esp_cli: UART: Waiting for data on GPIO4...
+I (36103) ot_esp_cli: Sending to child address: fdde:ad00:beef:0:11d8:f2f9:ff34:a0a1
+E (36103) ot_esp_cli: Failed to send UDP message: 7
+W (36103) ot_esp_cli: Send skipped or failed
+I (37083) ot_esp_cli: UART: Waiting for data on GPIO4...
