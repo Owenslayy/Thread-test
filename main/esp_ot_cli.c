@@ -59,9 +59,12 @@
 #define UART_BUF_SIZE   1024
 #define CONTROL_PIN     7
 
+
 #define UDP_PORT        12345
 #define CHILD_TIMEOUT_S 60
 #define SEND_PERIOD_MS  5000
+
+
 
 static otUdpSocket sUdpSocket;
 static otUdpSocket sReceiveSocket;
@@ -74,6 +77,7 @@ static bool sChildAddrSet = false;
 static bool sLedCommandReceived = false;
 static uint8_t sCurrentLedColor = 0x42;  // 'B'
 
+// Tâche de test pour faire clignoter les LED en rouge, vert et bleu
 static void check_uart_and_control_pin(const uint8_t *data, int len)
 {
     if (len <= 0) {
@@ -99,13 +103,14 @@ static void set_child_address(const otIp6Address *addr)
     ESP_LOGI(TAG, "Child address set to %s", addrStr);
 }
 
+// Fonction pour effacer l'adresse de l'enfant lorsque celui-ci se déconnecte ou devient invalide
 static void clear_child_address(void)
 {
     memset(&sChildAddr, 0, sizeof(sChildAddr));
     sChildAddrSet = false;
     ESP_LOGW(TAG, "Child address cleared");
 }
-
+// Fonction pour vérifier si l'adresse de l'enfant est toujours valide
 static bool init_udp_socket_locked(otInstance *instance)
 {
     if (sUdpSocketOpen) {
@@ -133,7 +138,7 @@ static bool init_udp_socket_locked(otInstance *instance)
     ESP_LOGI(TAG, "UDP send socket initialized on port %d", UDP_PORT);
     return true;
 }
-
+// Fonction de rappel pour la réception de messages UDP
 static void handle_udp_receive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
 {
     (void)aContext;
@@ -164,11 +169,15 @@ static void handle_udp_receive(void *aContext, otMessage *aMessage, const otMess
         sCurrentLedColor = 0x47;
         sLedCommandReceived = true;
         ESP_LOGI(TAG, "LED color changed to GREEN");
+    } else if (data[0] == 0x46){
+        sCurrentLedColor = 0x46;
+        sLedCommandReceived = true;
+        ESP_LOGI(TAG, "LED color changed to RED");
     } else {
         ESP_LOGW(TAG, "Unknown LED command: 0x%02X", data[0]);
     }
 }
-
+// Fonction pour initialiser le socket de réception UDP
 static bool init_receive_socket_locked(otInstance *instance)
 {
     if (sReceiveSocketOpen) {
@@ -403,7 +412,7 @@ static void led_blink_task(void *pvParameters)
     // Configuration de la bande LED
     led_strip_config_t strip_config = {
         .strip_gpio_num = LED_GPIO,  // GPIO connecté à la LED
-        .max_leds = 1,               // Une seule LED dans la bande
+        .max_leds = 10,               // Six LED dans la bande
     };
     led_strip_rmt_config_t rmt_config = {
         .resolution_hz = 10 * 1000 * 1000,  // 10 MHz pour le contrôle RMT
@@ -451,7 +460,10 @@ static void led_blink_task(void *pvParameters)
         } else if (role == OT_DEVICE_ROLE_CHILD) {
             // Child: couleur selon la commande UDP reçue
             if (sCurrentLedColor == 0x47) {
-                led_strip_set_pixel(led_strip, 0, 0, 50, 0);  // Vert pour commande 0x47
+            //    led_strip_set_pixel(led_strip, 0, 0, 50, 0);  // Vert pour commande 0x47
+                for (int i = 1; i < 10; i++) {
+            led_strip_set_pixel(led_strip, i, 50, 30, 0);
+        }
             } else {
                 led_strip_set_pixel(led_strip, 0, 0, 0, 50);  // Bleu pour commande 0x42 (défaut)
             }
@@ -468,6 +480,7 @@ static void led_blink_task(void *pvParameters)
             led_strip_clear(led_strip);
             led_strip_refresh(led_strip);
             vTaskDelay(pdMS_TO_TICKS(500));
+            
         }
     }
 }
@@ -517,6 +530,8 @@ static void uart_read_task(void *pvParameters)
         }
     }
 }
+
+
 
 /**
  * @brief Tâche d'exemple d'envoi périodique de données aux enfants
@@ -753,7 +768,7 @@ void app_main(void)
 
     // Création de la tâche de contrôle LED
     xTaskCreate(led_blink_task, "led_blink", 4096, NULL, 5, NULL);
-
+   
 #else
     // Configuration pour un appareil parent (Leader/Router)
     esp_openthread_lock_acquire(portMAX_DELAY);
@@ -795,7 +810,8 @@ void app_main(void)
     // Configuration UART et GPIO pour le débogage
     configure_uart_and_gpio();
 
-    // Création des tâches pour l'appareil parent
+    // Création des tâches de contrôle LED, lecture UART et envoi périodique
+   
     xTaskCreate(uart_read_task, "uart_read", 4096, NULL, 5, NULL);
     xTaskCreate(send_data_example_task, "send_example", 4096, instance, 4, NULL);
     xTaskCreate(led_blink_task, "led_blink", 4096, NULL, 5, NULL);
@@ -806,4 +822,6 @@ void app_main(void)
 #if CONFIG_OPENTHREAD_CLI_ESP_EXTENSION
     esp_cli_custom_command_init();
 #endif
+
+
 }
