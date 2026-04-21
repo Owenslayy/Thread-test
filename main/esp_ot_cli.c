@@ -51,11 +51,11 @@
 #endif
 
 #define TAG "ot_esp_cli"
-#define LED_GPIO 8
+#define LED_GPIO 10
 
-#define UART_NUM        UART_NUM_1
-#define UART_TX_PIN     5
-#define UART_RX_PIN     4
+#define UART_NUM        UART_NUM_0
+#define UART_TX_PIN     16
+#define UART_RX_PIN     17
 #define UART_BUF_SIZE   1024
 #define CONTROL_PIN     7
 
