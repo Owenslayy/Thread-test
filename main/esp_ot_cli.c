@@ -57,7 +57,9 @@
 #define UART_TX_PIN     16
 #define UART_RX_PIN     17
 #define UART_BUF_SIZE   1024
-#define CONTROL_PIN     7
+#define CONTROL_PIN_1 7
+#define CONTROL_PIN_2 8
+#define CONTROL_PIN_3 9
 
 
 #define UDP_PORT        12345
@@ -84,13 +86,13 @@ static void check_uart_and_control_pin(const uint8_t *data, int len)
         return;
     }
 
-    if (data[0] == 0x00) {
+    /*if (data[0] == 0x00) {
         gpio_set_level(CONTROL_PIN, 1);
         ESP_LOGI(TAG, "UART received 0x00 - GPIO %d turned ON", CONTROL_PIN);
     } else {
         gpio_set_level(CONTROL_PIN, 0);
         ESP_LOGI(TAG, "UART received 0x%02X - GPIO %d turned OFF", data[0], CONTROL_PIN);
-    }
+    }*/
 }
 
 static void set_child_address(const otIp6Address *addr)
@@ -160,21 +162,53 @@ static void handle_udp_receive(void *aContext, otMessage *aMessage, const otMess
     }
 
     ESP_LOGI(TAG, "Received UDP data: 0x%02X", data[0]);
+    if (data[0] == 0x00) {
+    gpio_set_level(CONTROL_PIN_1, 1);
+    ESP_LOGI(TAG, "0x00 -> GPIO %d HIGH", CONTROL_PIN_1);
 
-    if (data[0] == 0x42) {
+    } else if (data[0] == 0x01) {
+        gpio_set_level(CONTROL_PIN_1, 0);
+        ESP_LOGI(TAG, "0x01 -> GPIO %d LOW", CONTROL_PIN_1);
+
+    } else if (data[0] == 0x02) {
+        gpio_set_level(CONTROL_PIN_2, 1);
+        ESP_LOGI(TAG, "0x02 -> GPIO %d HIGH", CONTROL_PIN_2);
+
+    } else if (data[0] == 0x03) {
+        gpio_set_level(CONTROL_PIN_2, 0);
+        ESP_LOGI(TAG, "0x03 -> GPIO %d LOW", CONTROL_PIN_2);
+
+    } else if (data[0] == 0x04) {
+        gpio_set_level(CONTROL_PIN_3, 1);
+        ESP_LOGI(TAG, "0x04 -> GPIO %d HIGH", CONTROL_PIN_3);
+
+    } else if (data[0] == 0x05) {
+        gpio_set_level(CONTROL_PIN_3, 0);
+        ESP_LOGI(TAG, "0x05 -> GPIO %d LOW", CONTROL_PIN_3);
+
+    } 
+    // 🔵 LED BLEU
+    else if (data[0] == 0x42) {
         sCurrentLedColor = 0x42;
         sLedCommandReceived = true;
         ESP_LOGI(TAG, "LED color changed to BLUE");
-    } else if (data[0] == 0x47) {
+
+    } 
+    // 🟢 LED VERT
+    else if (data[0] == 0x47) {
         sCurrentLedColor = 0x47;
         sLedCommandReceived = true;
         ESP_LOGI(TAG, "LED color changed to GREEN");
-    } else if (data[0] == 0x46){
+
+    } 
+    // 🔴 LED ROUGE
+    else if (data[0] == 0x46) {
         sCurrentLedColor = 0x46;
         sLedCommandReceived = true;
         ESP_LOGI(TAG, "LED color changed to RED");
+
     } else {
-        ESP_LOGW(TAG, "Unknown LED command: 0x%02X", data[0]);
+        ESP_LOGW(TAG, "Unknown command: 0x%02X", data[0]);
     }
 }
 // Fonction pour initialiser le socket de réception UDP
@@ -503,7 +537,7 @@ static void led_blink_task(void *pvParameters)
  */
 static void uart_read_task(void *pvParameters)
 {
-    (void)pvParameters;
+    otInstance *instance = (otInstance *)pvParameters;
 
     // Allocation du buffer UART
     uint8_t *data = (uint8_t *)malloc(UART_BUF_SIZE);
@@ -523,6 +557,16 @@ static void uart_read_task(void *pvParameters)
 
             // Traitement des données reçues
             check_uart_and_control_pin(data, len);
+                        // 🔥 ENVOI UDP DIRECT
+            esp_openthread_lock_acquire(portMAX_DELAY);
+            bool ok = send_to_child_locked(instance, data, len);
+            esp_openthread_lock_release();
+
+            if (ok) {
+                ESP_LOGI(TAG, "UDP sent from UART (%d bytes)", len);
+            } else {
+                ESP_LOGW(TAG, "UDP send failed");
+            }
             // Echo des données sur UART
             uart_write_bytes(UART_NUM, (const char *)data, len);
         } else {
@@ -548,7 +592,7 @@ static void uart_read_task(void *pvParameters)
  *
  * @param pvParameters Instance OpenThread passée en paramètre
  */
-static void send_data_example_task(void *pvParameters)
+/*static void send_data_example_task(void *pvParameters)
 {
     otInstance *instance = (otInstance *)pvParameters;
     bool blue_color = true;
@@ -577,7 +621,7 @@ static void send_data_example_task(void *pvParameters)
         // Attendre avant le prochain envoi
         vTaskDelay(pdMS_TO_TICKS(SEND_PERIOD_MS));
     }
-}
+}*/
 
 /**
  * @brief Configure l'UART et les GPIO pour le débogage et le contrôle
@@ -615,7 +659,9 @@ static void configure_uart_and_gpio(void)
 
     // Configuration de la broche GPIO de contrôle
     gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << CONTROL_PIN),
+            .pin_bit_mask = (1ULL << CONTROL_PIN_1) |
+                            (1ULL << CONTROL_PIN_2) |
+                            (1ULL << CONTROL_PIN_3),
         .mode = GPIO_MODE_OUTPUT,
     };
     ESP_ERROR_CHECK(gpio_config(&io_conf));
@@ -812,8 +858,8 @@ void app_main(void)
 
     // Création des tâches de contrôle LED, lecture UART et envoi périodique
    
-    xTaskCreate(uart_read_task, "uart_read", 4096, NULL, 5, NULL);
-    xTaskCreate(send_data_example_task, "send_example", 4096, instance, 4, NULL);
+    xTaskCreate(uart_read_task, "uart_read", 4096, instance, 5, NULL);
+ //   xTaskCreate(send_data_example_task, "send_example", 4096, instance, 4, NULL);
     xTaskCreate(led_blink_task, "led_blink", 4096, NULL, 5, NULL);
 
 #endif
