@@ -163,8 +163,11 @@ static void handle_udp_receive(void *aContext, otMessage *aMessage, const otMess
 
     ESP_LOGI(TAG, "Received UDP data: 0x%02X", data[0]);
     if (data[0] == 0x00) {
-    gpio_set_level(CONTROL_PIN_1, 1);
-    ESP_LOGI(TAG, "0x00 -> GPIO %d HIGH", CONTROL_PIN_1);
+   // gpio_set_level(CONTROL_PIN_1, 1);
+    sCurrentLedColor = 0x47;
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    sCurrentLedColor = 0x00;
+    //ESP_LOGI(TAG, "0x00 -> GPIO %d HIGH", CONTROL_PIN_1);
 
     } else if (data[0] == 0x01) {
         gpio_set_level(CONTROL_PIN_1, 0);
@@ -446,7 +449,7 @@ static void led_blink_task(void *pvParameters)
     // Configuration de la bande LED
     led_strip_config_t strip_config = {
         .strip_gpio_num = LED_GPIO,  // GPIO connecté à la LED
-        .max_leds = 10,               // Six LED dans la bande
+        .max_leds = 4,               // Six LED dans la bande
     };
     led_strip_rmt_config_t rmt_config = {
         .resolution_hz = 10 * 1000 * 1000,  // 10 MHz pour le contrôle RMT
@@ -499,7 +502,7 @@ static void led_blink_task(void *pvParameters)
             led_strip_set_pixel(led_strip, i, 50, 30, 0);
         }
             } else {
-                led_strip_set_pixel(led_strip, 0, 0, 0, 50);  // Bleu pour commande 0x42 (défaut)
+                led_strip_set_pixel(led_strip, 0, 0, 0, 0);  // Noir pour commande 0x42 (défaut)
             }
             led_strip_refresh(led_strip);
             vTaskDelay(pdMS_TO_TICKS(200));
@@ -509,6 +512,9 @@ static void led_blink_task(void *pvParameters)
         } else {
             // État détaché/désactivé: clignotement rouge lent
             led_strip_set_pixel(led_strip, 0, 50, 0, 0);  // Rouge
+            for (int i = 1; i < 4; i++) {
+            led_strip_set_pixel(led_strip, i, 0, 0, 0);
+        }
             led_strip_refresh(led_strip);
             vTaskDelay(pdMS_TO_TICKS(500));
             led_strip_clear(led_strip);
