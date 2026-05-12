@@ -112,6 +112,21 @@
 #define SERVO_1_CHANNEL     LEDC_CHANNEL_0
 #define SERVO_2_CHANNEL     LEDC_CHANNEL_1
 #define SERVO_LEDC_TIMER    LEDC_TIMER_0
+
+/* ── Robinet (water valve) PWM — 30% duty max ────────────────── */
+#define ROBINET_GPIO        CONTROL_PIN_3   /* GPIO 9 drives the valve  */
+#define ROBINET_CHANNEL     LEDC_CHANNEL_2
+#define ROBINET_LEDC_TIMER  LEDC_TIMER_1
+#define ROBINET_FREQ_HZ     1000            /* 1 kHz PWM                */
+#define ROBINET_TIMER_RES   LEDC_TIMER_10_BIT   /* 0..1023              */
+#define ROBINET_DUTY_30PCT  307             /* 30% of 1023              */
+
+/* LED color codes */
+#define LED_COLOR_WHITE     0xFF
+#define LED_COLOR_OFF       0x00
+#define LED_COLOR_BLUE      0x42
+#define LED_COLOR_GREEN     0x47
+#define LED_COLOR_RED       0x46
  
 /* ── Thread / UDP ────────────────────────────────────────────── */
 #define UDP_PORT        12345
@@ -193,6 +208,45 @@ static void servo_init(void)
              SERVO_1_GPIO, SERVO_2_GPIO, SERVO_FREQ_HZ);
 }
  
+/* ══════════════════════════════════════════════════════════════
+ *  robinet_init
+ *
+ *  Configures LEDC timer 1 at 1 kHz 10-bit for water valve PWM.
+ *  Valve starts OFF (duty = 0).
+ * ══════════════════════════════════════════════════════════════ */
+static void robinet_init(void)
+{
+    ledc_timer_config_t timer_cfg = {
+        .speed_mode      = LEDC_LOW_SPEED_MODE,
+        .timer_num       = ROBINET_LEDC_TIMER,
+        .duty_resolution = ROBINET_TIMER_RES,
+        .freq_hz         = ROBINET_FREQ_HZ,
+        .clk_cfg         = LEDC_AUTO_CLK,
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&timer_cfg));
+
+    ledc_channel_config_t ch = {
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .channel    = ROBINET_CHANNEL,
+        .timer_sel  = ROBINET_LEDC_TIMER,
+        .intr_type  = LEDC_INTR_DISABLE,
+        .gpio_num   = ROBINET_GPIO,
+        .duty       = 0,
+        .hpoint     = 0,
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&ch));
+    ESP_LOGI(TAG, "Robinet PWM init OK — GPIO%d @ %dHz 10-bit",
+             ROBINET_GPIO, ROBINET_FREQ_HZ);
+}
+
+static void robinet_set(bool on)
+{
+    uint32_t duty = on ? ROBINET_DUTY_30PCT : 0;
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, ROBINET_CHANNEL, duty));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, ROBINET_CHANNEL));
+    ESP_LOGI(TAG, "Robinet %s (duty=%lu)", on ? "ON 30%%" : "OFF", duty);
+}
+
 /* ══════════════════════════════════════════════════════════════
  *  servo_set_angle
  *
@@ -314,67 +368,104 @@ static void handle_udp_receive(void        *aContext,
     ESP_LOGI(TAG, "UDP received: 0x%02X", data[0]);
  
     switch (data[0]) {
- 
-        /* ── GPIO commands ─────────────────────────────────── */
+
+        /* ── Wake word confirmation (no action needed) ─────── */
         case 0x00:
-            gpio_set_level(CONTROL_PIN_1, 1);
-            sCurrentLedColor = 0x47;
-            ESP_LOGI(TAG, "0x00 -> GPIO%d HIGH + LED GREEN", CONTROL_PIN_1);
+            ESP_LOGI(TAG, "0x00 -> Wake word confirmed");
             break;
-        case 0x01:
-            gpio_set_level(CONTROL_PIN_1, 0);
-            sCurrentLedColor = 0x42;
-            ESP_LOGI(TAG, "0x01 -> GPIO%d LOW", CONTROL_PIN_1);
+
+        /* ════════════════════════════════════════════════════
+         *  LUMIERE — LED strip WHITE on/off
+         *  0x11 allume lumiere  → WHITE ON
+         *  0x21 eteins lumiere  → OFF
+         *  0x31 ouvre  lumiere  → WHITE ON
+         *  0x41 ferme  lumiere  → OFF
+         * ════════════════════════════════════════════════════ */
+        case 0x11:  /* allume lumiere */
+        case 0x31:  /* ouvre  lumiere */
+            sCurrentLedColor = LED_COLOR_WHITE;
+            ESP_LOGI(TAG, "0x%02X -> LUMIERE ON (white)", data[0]);
             break;
-        case 0x02:
-            gpio_set_level(CONTROL_PIN_2, 1);
-            ESP_LOGI(TAG, "0x02 -> GPIO%d HIGH", CONTROL_PIN_2);
+
+        case 0x21:  /* eteins lumiere */
+        case 0x41:  /* ferme  lumiere */
+            sCurrentLedColor = LED_COLOR_OFF;
+            ESP_LOGI(TAG, "0x%02X -> LUMIERE OFF", data[0]);
             break;
-        case 0x03:
-            gpio_set_level(CONTROL_PIN_2, 0);
-            ESP_LOGI(TAG, "0x03 -> GPIO%d LOW", CONTROL_PIN_2);
+
+        /* ════════════════════════════════════════════════════
+         *  CHAUFFAGE — heat/cold control via IN1/IN2
+         *  0x12 allume chauffage → heat ON  (IN1=1 IN2=0)
+         *  0x22 eteins chauffage → all OFF  (IN1=0 IN2=0)
+         *  0x32 ouvre  chauffage → cold ON  (IN1=0 IN2=1)
+         *  0x42 ferme  chauffage → all OFF  (IN1=0 IN2=0)
+         * ════════════════════════════════════════════════════ */
+        case 0x12:  /* allume chauffage → heat ON */
+            gpio_set_level(IN1, 1);
+            gpio_set_level(IN2, 0);
+            ESP_LOGI(TAG, "0x12 -> CHAUFFAGE heat ON (IN1=1 IN2=0)");
             break;
-        case 0x04:
-            gpio_set_level(CONTROL_PIN_3, 1);
-            ESP_LOGI(TAG, "0x04 -> GPIO%d HIGH", CONTROL_PIN_3);
+
+        case 0x22:  /* eteins chauffage → all OFF */
+        case 0x42:  /* ferme  chauffage → all OFF */
+            gpio_set_level(IN1, 0);
+            gpio_set_level(IN2, 0);
+            ESP_LOGI(TAG, "0x%02X -> CHAUFFAGE OFF (IN1=0 IN2=0)", data[0]);
             break;
-        case 0x05:
-            gpio_set_level(CONTROL_PIN_3, 0);
-            ESP_LOGI(TAG, "0x05 -> GPIO%d LOW", CONTROL_PIN_3);
+
+        case 0x32:  /* ouvre chauffage → cold ON */
+            gpio_set_level(IN1, 0);
+            gpio_set_level(IN2, 1);
+            ESP_LOGI(TAG, "0x32 -> CHAUFFAGE cold ON (IN1=0 IN2=1)");
             break;
- 
-        /* ── Servo commands ────────────────────────────────── */
+
+        /* ════════════════════════════════════════════════════
+         *  ROBINET — water valve PWM 30% duty
+         *  0x13 allume robinet → PWM ON  30%%
+         *  0x23 eteins robinet → PWM OFF
+         *  0x33 ouvre  robinet → PWM ON  30%%
+         *  0x43 ferme  robinet → PWM OFF
+         * ════════════════════════════════════════════════════ */
+        case 0x13:  /* allume robinet */
+        case 0x33:  /* ouvre  robinet */
+            robinet_set(true);
+            ESP_LOGI(TAG, "0x%02X -> ROBINET ON (30%% PWM)", data[0]);
+            break;
+
+        case 0x23:  /* eteins robinet */
+        case 0x43:  /* ferme  robinet */
+            robinet_set(false);
+            ESP_LOGI(TAG, "0x%02X -> ROBINET OFF", data[0]);
+            break;
+
+        /* ── Legacy LED colour commands (keep for compatibility) */
+        case 0x47:
+            sCurrentLedColor = LED_COLOR_GREEN;
+            ESP_LOGI(TAG, "LED -> GREEN");
+            break;
+        case 0x46:
+            sCurrentLedColor = LED_COLOR_RED;
+            ESP_LOGI(TAG, "LED -> RED");
+            break;
+
+        /* ── Servo commands (unchanged) ────────────────────── */
         case 0x10:
             ESP_LOGI(TAG, "0x10 -> Servo 1: 0° → 180°");
             servo_rotate_180(SERVO_1_CHANNEL);
             break;
-        case 0x11:
-            ESP_LOGI(TAG, "0x11 -> Servo 2: 0° → 180°");
+        case 0x20:
+            ESP_LOGI(TAG, "0x20 -> Servo 2: 0° → 180°");
             servo_rotate_180(SERVO_2_CHANNEL);
             break;
-        case 0x12:
-            ESP_LOGI(TAG, "0x12 -> Servo 1: return to 0°");
+        case 0x30:
+            ESP_LOGI(TAG, "0x30 -> Servo 1: return to 0°");
             servo_set_angle(SERVO_1_CHANNEL, 0);
             break;
-        case 0x13:
-            ESP_LOGI(TAG, "0x13 -> Servo 2: return to 0°");
+        case 0x40:
+            ESP_LOGI(TAG, "0x40 -> Servo 2: return to 0°");
             servo_set_angle(SERVO_2_CHANNEL, 0);
             break;
- 
-        /* ── LED colour commands ───────────────────────────── */
-        case 0x42:
-            sCurrentLedColor = 0x42;
-            ESP_LOGI(TAG, "LED -> BLUE");
-            break;
-        case 0x47:
-            sCurrentLedColor = 0x47;
-            ESP_LOGI(TAG, "LED -> GREEN");
-            break;
-        case 0x46:
-            sCurrentLedColor = 0x46;
-            ESP_LOGI(TAG, "LED -> RED");
-            break;
- 
+
         default:
             ESP_LOGW(TAG, "Unknown command: 0x%02X", data[0]);
             break;
@@ -590,17 +681,29 @@ static void led_blink_task(void *pvParameters)
                 led_strip_refresh(led_strip);
                 last_color = color;
             }
-            if (color == 0x47) {
+            if (color == LED_COLOR_WHITE) {
+                /* allume/ouvre lumiere → full white */
+                for (int i = 0; i < LED_MAX; i++)
+                    led_strip_set_pixel(led_strip, i, 200, 200, 200);
+                led_strip_refresh(led_strip);
+            } else if (color == LED_COLOR_OFF) {
+                /* eteins/ferme lumiere → all off */
+                led_strip_clear(led_strip);
+                led_strip_refresh(led_strip);
+            } else if (color == LED_COLOR_GREEN) {
                 for (int i = 0; i < LED_MAX; i++)
                     led_strip_set_pixel(led_strip, i, 50, 30, 0);
-            } else if (color == 0x46) {
+                led_strip_refresh(led_strip);
+            } else if (color == LED_COLOR_RED) {
                 for (int i = 0; i < LED_MAX; i++)
                     led_strip_set_pixel(led_strip, i, 50, 0, 0);
+                led_strip_refresh(led_strip);
             } else {
+                /* default blue */
                 for (int i = 0; i < LED_MAX; i++)
                     led_strip_set_pixel(led_strip, i, 0, 0, 50);
+                led_strip_refresh(led_strip);
             }
-            led_strip_refresh(led_strip);
             vTaskDelay(pdMS_TO_TICKS(200));
  
         } else {
@@ -654,15 +757,24 @@ static void uart_read_task(void *pvParameters)
 }
  
 /* ══════════════════════════════════════════════════════════════
- *  HEAT CONTROL TASK  (unchanged)
+ *  HEAT CONTROL TASK
+ *
+ *  Now driven by UDP commands (0x12/0x22/0x32/0x42) instead of
+ *  running in a fixed loop. This task just logs the current state
+ *  every 10 seconds for monitoring.
+ *  Actual pin control happens in handle_udp_receive().
  * ══════════════════════════════════════════════════════════════ */
 static void set_heat_control_pins(void *pvParameters)
 {
+    /* Ensure both pins start LOW (off) */
+    gpio_set_level(IN1, 0);
+    gpio_set_level(IN2, 0);
+    ESP_LOGI(TAG, "Heat/Cool task started — IN1/IN2 both OFF");
+
     while (1) {
-        ESP_LOGI(TAG, "Heat/Cool task running");
-        gpio_set_level(IN1, 1);
-        gpio_set_level(IN2, 0);
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        ESP_LOGI(TAG, "Heat monitor: IN1=%d IN2=%d",
+                 gpio_get_level(IN1), gpio_get_level(IN2));
     }
 }
  
@@ -820,6 +932,7 @@ void app_main(void)
  
     gpio_init_pins();
     servo_init();       /* both servos start at 0° */
+    robinet_init();     /* water valve PWM, starts OFF */
  
 #if CONFIG_OPENTHREAD_CLI
     esp_openthread_cli_init();
