@@ -72,7 +72,7 @@
 #define TAG "ot_esp_cli"
  
 /* ── LED strip ───────────────────────────────────────────────── */
-#define LED_GPIO        12
+#define LED_GPIO        5
 #define LED_MAX         4
  
 /* ── UART ────────────────────────────────────────────────────── */
@@ -87,10 +87,20 @@
 #define CONTROL_PIN_3   9
 #define IN1             10
 #define IN2             22
+
+/* ── GPIO Monitor (input → envoie UDP automatiquement) ───────── */
+/* Broche à surveiller — change selon ton câblage               */
+#define GPIO_MONITOR_PIN    12
+/* Commande envoyée à l'enfant quand le GPIO passe à HIGH        */
+#define GPIO_CMD_HIGH       0x20
+/* Commande envoyée à l'enfant quand le GPIO passe à LOW         */
+#define GPIO_CMD_LOW        0x21
+/* Intervalle de polling en ms                                   */
+#define GPIO_POLL_MS        100
  
 /* ── Servo PWM (LEDC) ────────────────────────────────────────── */
 #define SERVO_1_GPIO        4
-#define SERVO_2_GPIO        5
+#define SERVO_2_GPIO        6
  
 #define SERVO_FREQ_HZ       50
 #define SERVO_TIMER_RES     LEDC_TIMER_14_BIT   /* 0 .. 16383 */
@@ -657,6 +667,61 @@ static void set_heat_control_pins(void *pvParameters)
 }
  
 /* ══════════════════════════════════════════════════════════════
+ *  GPIO MONITOR TASK
+ *
+ *  Surveille GPIO_MONITOR_PIN en input avec pull-down interne.
+ *  Quand l'état change (LOW→HIGH ou HIGH→LOW), envoie un byte
+ *  UDP à l'enfant via Thread :
+ *    GPIO HIGH → 0x20
+ *    GPIO LOW  → 0x21
+ *
+ *  Polling toutes les GPIO_POLL_MS ms.
+ *  Lancé uniquement sur le parent (bloc #else dans app_main).
+ * ══════════════════════════════════════════════════════════════ */
+static void gpio_monitor_task(void *pvParameters)
+{
+    otInstance *instance = (otInstance *)pvParameters;
+
+    /* Configure GPIO_MONITOR_PIN en entrée avec pull-down */
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << GPIO_MONITOR_PIN),
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    ESP_LOGI(TAG, "GPIO monitor task started on GPIO%d", GPIO_MONITOR_PIN);
+
+    int last_level = gpio_get_level(GPIO_MONITOR_PIN);
+    ESP_LOGI(TAG, "GPIO%d initial state: %d", GPIO_MONITOR_PIN, last_level);
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(GPIO_POLL_MS));
+
+        int current_level = gpio_get_level(GPIO_MONITOR_PIN);
+
+        if (current_level != last_level) {
+            last_level = current_level;
+
+            uint8_t cmd = (current_level == 1) ? GPIO_CMD_HIGH : GPIO_CMD_LOW;
+
+            ESP_LOGI(TAG, "GPIO%d changed → %d, sending 0x%02X to child",
+                     GPIO_MONITOR_PIN, current_level, cmd);
+
+            esp_openthread_lock_acquire(portMAX_DELAY);
+            bool ok = send_to_child_locked(instance, &cmd, 1);
+            esp_openthread_lock_release();
+
+            if (ok)
+                ESP_LOGI(TAG, "GPIO event sent: 0x%02X", cmd);
+            else
+                ESP_LOGW(TAG, "GPIO event send failed (no child?)");
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
  *  GPIO INIT  (unchanged)
  * ══════════════════════════════════════════════════════════════ */
 static void gpio_init_pins(void)
@@ -841,8 +906,9 @@ void app_main(void)
  
     configure_uart_and_gpio();
  
-    xTaskCreate(uart_read_task, "uart_read", 4096, instance, 5, NULL);
-    xTaskCreate(led_blink_task, "led_blink", 4096, NULL,     5, NULL);
+    xTaskCreate(uart_read_task,    "uart_read",    4096, instance, 5, NULL);
+    xTaskCreate(gpio_monitor_task, "gpio_monitor", 2048, instance, 5, NULL);
+    xTaskCreate(led_blink_task,    "led_blink",    4096, NULL,     5, NULL);
  
 #endif
  
