@@ -20,7 +20,7 @@
  *
  * GPIO assignment (free pins on ESP32-C6 Wroom-1):
  *   SERVO_1_GPIO  GPIO 4
- *   SERVO_2_GPIO  GPIO 5
+ *   SERVO_2_GPIO  GPIO 11  (GPIO6 = MTCK/JTAG clock; GPIO2 = BTN_LUMIERE)
  *   (existing pins 7,8,9,10,12,16,17,22 untouched)
  */
  
@@ -86,7 +86,7 @@
 #define CONTROL_PIN_2   8
 #define CONTROL_PIN_3   9
 #define IN1             10
-#define IN2             22
+#define IN2             22  /* GPIO24+ = internal SPI flash pins — do not use */
 
 /* ── GPIO Monitor (input → envoie UDP automatiquement) ───────── */
 /* Broche à surveiller — change selon ton câblage               */
@@ -116,7 +116,7 @@
  
 /* ── Servo PWM (LEDC) ────────────────────────────────────────── */
 #define SERVO_1_GPIO        4
-#define SERVO_2_GPIO        6
+#define SERVO_2_GPIO        11  /* GPIO2 = BTN_LUMIERE — use free pin instead */
  
 #define SERVO_FREQ_HZ       50
 #define SERVO_TIMER_RES     LEDC_TIMER_14_BIT   /* 0 .. 16383 */
