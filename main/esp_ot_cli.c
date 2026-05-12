@@ -97,6 +97,22 @@
 #define GPIO_CMD_LOW        0x21
 /* Intervalle de polling en ms                                   */
 #define GPIO_POLL_MS        100
+
+/* ── Toggle Buttons (leader only) ───────────────────────────── */
+/*  Bouton 1 → GPIO 2 → lumière  (allume 0x11 / eteins 0x21)   */
+/*  Bouton 2 → GPIO 3 → robinet  (allume 0x13 / eteins 0x23)   */
+#define BTN_LUMIERE_PIN     2
+#define BTN_ROBINET_PIN     3
+#define BTN_DEBOUNCE_MS     50      /* anti-rebond 50 ms         */
+#define BTN_POLL_MS         20      /* lecture toutes les 20 ms  */
+
+/* Commandes lumière */
+#define CMD_LUMIERE_ON      0x11    /* allume lumiere            */
+#define CMD_LUMIERE_OFF     0x21    /* eteins lumiere            */
+
+/* Commandes robinet */
+#define CMD_ROBINET_ON      0x13    /* allume robinet            */
+#define CMD_ROBINET_OFF     0x23    /* eteins robinet            */
  
 /* ── Servo PWM (LEDC) ────────────────────────────────────────── */
 #define SERVO_1_GPIO        4
@@ -112,21 +128,6 @@
 #define SERVO_1_CHANNEL     LEDC_CHANNEL_0
 #define SERVO_2_CHANNEL     LEDC_CHANNEL_1
 #define SERVO_LEDC_TIMER    LEDC_TIMER_0
-
-/* ── Robinet (water valve) PWM — 30% duty max ────────────────── */
-#define ROBINET_GPIO        CONTROL_PIN_3   /* GPIO 9 drives the valve  */
-#define ROBINET_CHANNEL     LEDC_CHANNEL_2
-#define ROBINET_LEDC_TIMER  LEDC_TIMER_1
-#define ROBINET_FREQ_HZ     1000            /* 1 kHz PWM                */
-#define ROBINET_TIMER_RES   LEDC_TIMER_10_BIT   /* 0..1023              */
-#define ROBINET_DUTY_30PCT  307             /* 30% of 1023              */
-
-/* LED color codes */
-#define LED_COLOR_WHITE     0xFF
-#define LED_COLOR_OFF       0x00
-#define LED_COLOR_BLUE      0x42
-#define LED_COLOR_GREEN     0x47
-#define LED_COLOR_RED       0x46
  
 /* ── Thread / UDP ────────────────────────────────────────────── */
 #define UDP_PORT        12345
@@ -208,45 +209,6 @@ static void servo_init(void)
              SERVO_1_GPIO, SERVO_2_GPIO, SERVO_FREQ_HZ);
 }
  
-/* ══════════════════════════════════════════════════════════════
- *  robinet_init
- *
- *  Configures LEDC timer 1 at 1 kHz 10-bit for water valve PWM.
- *  Valve starts OFF (duty = 0).
- * ══════════════════════════════════════════════════════════════ */
-static void robinet_init(void)
-{
-    ledc_timer_config_t timer_cfg = {
-        .speed_mode      = LEDC_LOW_SPEED_MODE,
-        .timer_num       = ROBINET_LEDC_TIMER,
-        .duty_resolution = ROBINET_TIMER_RES,
-        .freq_hz         = ROBINET_FREQ_HZ,
-        .clk_cfg         = LEDC_AUTO_CLK,
-    };
-    ESP_ERROR_CHECK(ledc_timer_config(&timer_cfg));
-
-    ledc_channel_config_t ch = {
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel    = ROBINET_CHANNEL,
-        .timer_sel  = ROBINET_LEDC_TIMER,
-        .intr_type  = LEDC_INTR_DISABLE,
-        .gpio_num   = ROBINET_GPIO,
-        .duty       = 0,
-        .hpoint     = 0,
-    };
-    ESP_ERROR_CHECK(ledc_channel_config(&ch));
-    ESP_LOGI(TAG, "Robinet PWM init OK — GPIO%d @ %dHz 10-bit",
-             ROBINET_GPIO, ROBINET_FREQ_HZ);
-}
-
-static void robinet_set(bool on)
-{
-    uint32_t duty = on ? ROBINET_DUTY_30PCT : 0;
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, ROBINET_CHANNEL, duty));
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, ROBINET_CHANNEL));
-    ESP_LOGI(TAG, "Robinet %s (duty=%lu)", on ? "ON 30%%" : "OFF", duty);
-}
-
 /* ══════════════════════════════════════════════════════════════
  *  servo_set_angle
  *
@@ -368,104 +330,67 @@ static void handle_udp_receive(void        *aContext,
     ESP_LOGI(TAG, "UDP received: 0x%02X", data[0]);
  
     switch (data[0]) {
-
-        /* ── Wake word confirmation (no action needed) ─────── */
+ 
+        /* ── GPIO commands ─────────────────────────────────── */
         case 0x00:
-            ESP_LOGI(TAG, "0x00 -> Wake word confirmed");
+            gpio_set_level(CONTROL_PIN_1, 1);
+            sCurrentLedColor = 0x47;
+            ESP_LOGI(TAG, "0x00 -> GPIO%d HIGH + LED GREEN", CONTROL_PIN_1);
             break;
-
-        /* ════════════════════════════════════════════════════
-         *  LUMIERE — LED strip WHITE on/off
-         *  0x11 allume lumiere  → WHITE ON
-         *  0x21 eteins lumiere  → OFF
-         *  0x31 ouvre  lumiere  → WHITE ON
-         *  0x41 ferme  lumiere  → OFF
-         * ════════════════════════════════════════════════════ */
-        case 0x11:  /* allume lumiere */
-        case 0x31:  /* ouvre  lumiere */
-            sCurrentLedColor = LED_COLOR_WHITE;
-            ESP_LOGI(TAG, "0x%02X -> LUMIERE ON (white)", data[0]);
+        case 0x01:
+            gpio_set_level(CONTROL_PIN_1, 0);
+            sCurrentLedColor = 0x42;
+            ESP_LOGI(TAG, "0x01 -> GPIO%d LOW", CONTROL_PIN_1);
             break;
-
-        case 0x21:  /* eteins lumiere */
-        case 0x41:  /* ferme  lumiere */
-            sCurrentLedColor = LED_COLOR_OFF;
-            ESP_LOGI(TAG, "0x%02X -> LUMIERE OFF", data[0]);
+        case 0x02:
+            gpio_set_level(CONTROL_PIN_2, 1);
+            ESP_LOGI(TAG, "0x02 -> GPIO%d HIGH", CONTROL_PIN_2);
             break;
-
-        /* ════════════════════════════════════════════════════
-         *  CHAUFFAGE — heat/cold control via IN1/IN2
-         *  0x12 allume chauffage → heat ON  (IN1=1 IN2=0)
-         *  0x22 eteins chauffage → all OFF  (IN1=0 IN2=0)
-         *  0x32 ouvre  chauffage → cold ON  (IN1=0 IN2=1)
-         *  0x42 ferme  chauffage → all OFF  (IN1=0 IN2=0)
-         * ════════════════════════════════════════════════════ */
-        case 0x12:  /* allume chauffage → heat ON */
-            gpio_set_level(IN1, 1);
-            gpio_set_level(IN2, 0);
-            ESP_LOGI(TAG, "0x12 -> CHAUFFAGE heat ON (IN1=1 IN2=0)");
+        case 0x03:
+            gpio_set_level(CONTROL_PIN_2, 0);
+            ESP_LOGI(TAG, "0x03 -> GPIO%d LOW", CONTROL_PIN_2);
             break;
-
-        case 0x22:  /* eteins chauffage → all OFF */
-        case 0x42:  /* ferme  chauffage → all OFF */
-            gpio_set_level(IN1, 0);
-            gpio_set_level(IN2, 0);
-            ESP_LOGI(TAG, "0x%02X -> CHAUFFAGE OFF (IN1=0 IN2=0)", data[0]);
+        case 0x04:
+            gpio_set_level(CONTROL_PIN_3, 1);
+            ESP_LOGI(TAG, "0x04 -> GPIO%d HIGH", CONTROL_PIN_3);
             break;
-
-        case 0x32:  /* ouvre chauffage → cold ON */
-            gpio_set_level(IN1, 0);
-            gpio_set_level(IN2, 1);
-            ESP_LOGI(TAG, "0x32 -> CHAUFFAGE cold ON (IN1=0 IN2=1)");
+        case 0x05:
+            gpio_set_level(CONTROL_PIN_3, 0);
+            ESP_LOGI(TAG, "0x05 -> GPIO%d LOW", CONTROL_PIN_3);
             break;
-
-        /* ════════════════════════════════════════════════════
-         *  ROBINET — water valve PWM 30% duty
-         *  0x13 allume robinet → PWM ON  30%%
-         *  0x23 eteins robinet → PWM OFF
-         *  0x33 ouvre  robinet → PWM ON  30%%
-         *  0x43 ferme  robinet → PWM OFF
-         * ════════════════════════════════════════════════════ */
-        case 0x13:  /* allume robinet */
-        case 0x33:  /* ouvre  robinet */
-            robinet_set(true);
-            ESP_LOGI(TAG, "0x%02X -> ROBINET ON (30%% PWM)", data[0]);
-            break;
-
-        case 0x23:  /* eteins robinet */
-        case 0x43:  /* ferme  robinet */
-            robinet_set(false);
-            ESP_LOGI(TAG, "0x%02X -> ROBINET OFF", data[0]);
-            break;
-
-        /* ── Legacy LED colour commands (keep for compatibility) */
-        case 0x47:
-            sCurrentLedColor = LED_COLOR_GREEN;
-            ESP_LOGI(TAG, "LED -> GREEN");
-            break;
-        case 0x46:
-            sCurrentLedColor = LED_COLOR_RED;
-            ESP_LOGI(TAG, "LED -> RED");
-            break;
-
-        /* ── Servo commands (unchanged) ────────────────────── */
+ 
+        /* ── Servo commands ────────────────────────────────── */
         case 0x10:
             ESP_LOGI(TAG, "0x10 -> Servo 1: 0° → 180°");
             servo_rotate_180(SERVO_1_CHANNEL);
             break;
-        case 0x20:
-            ESP_LOGI(TAG, "0x20 -> Servo 2: 0° → 180°");
+        case 0x11:
+            ESP_LOGI(TAG, "0x11 -> Servo 2: 0° → 180°");
             servo_rotate_180(SERVO_2_CHANNEL);
             break;
-        case 0x30:
-            ESP_LOGI(TAG, "0x30 -> Servo 1: return to 0°");
+        case 0x12:
+            ESP_LOGI(TAG, "0x12 -> Servo 1: return to 0°");
             servo_set_angle(SERVO_1_CHANNEL, 0);
             break;
-        case 0x40:
-            ESP_LOGI(TAG, "0x40 -> Servo 2: return to 0°");
+        case 0x13:
+            ESP_LOGI(TAG, "0x13 -> Servo 2: return to 0°");
             servo_set_angle(SERVO_2_CHANNEL, 0);
             break;
-
+ 
+        /* ── LED colour commands ───────────────────────────── */
+        case 0x42:
+            sCurrentLedColor = 0x42;
+            ESP_LOGI(TAG, "LED -> BLUE");
+            break;
+        case 0x47:
+            sCurrentLedColor = 0x47;
+            ESP_LOGI(TAG, "LED -> GREEN");
+            break;
+        case 0x46:
+            sCurrentLedColor = 0x46;
+            ESP_LOGI(TAG, "LED -> RED");
+            break;
+ 
         default:
             ESP_LOGW(TAG, "Unknown command: 0x%02X", data[0]);
             break;
@@ -681,29 +606,17 @@ static void led_blink_task(void *pvParameters)
                 led_strip_refresh(led_strip);
                 last_color = color;
             }
-            if (color == LED_COLOR_WHITE) {
-                /* allume/ouvre lumiere → full white */
-                for (int i = 0; i < LED_MAX; i++)
-                    led_strip_set_pixel(led_strip, i, 200, 200, 200);
-                led_strip_refresh(led_strip);
-            } else if (color == LED_COLOR_OFF) {
-                /* eteins/ferme lumiere → all off */
-                led_strip_clear(led_strip);
-                led_strip_refresh(led_strip);
-            } else if (color == LED_COLOR_GREEN) {
+            if (color == 0x47) {
                 for (int i = 0; i < LED_MAX; i++)
                     led_strip_set_pixel(led_strip, i, 50, 30, 0);
-                led_strip_refresh(led_strip);
-            } else if (color == LED_COLOR_RED) {
+            } else if (color == 0x46) {
                 for (int i = 0; i < LED_MAX; i++)
                     led_strip_set_pixel(led_strip, i, 50, 0, 0);
-                led_strip_refresh(led_strip);
             } else {
-                /* default blue */
                 for (int i = 0; i < LED_MAX; i++)
                     led_strip_set_pixel(led_strip, i, 0, 0, 50);
-                led_strip_refresh(led_strip);
             }
+            led_strip_refresh(led_strip);
             vTaskDelay(pdMS_TO_TICKS(200));
  
         } else {
@@ -757,27 +670,127 @@ static void uart_read_task(void *pvParameters)
 }
  
 /* ══════════════════════════════════════════════════════════════
- *  HEAT CONTROL TASK
- *
- *  Now driven by UDP commands (0x12/0x22/0x32/0x42) instead of
- *  running in a fixed loop. This task just logs the current state
- *  every 10 seconds for monitoring.
- *  Actual pin control happens in handle_udp_receive().
+ *  HEAT CONTROL TASK  (unchanged)
  * ══════════════════════════════════════════════════════════════ */
 static void set_heat_control_pins(void *pvParameters)
 {
-    /* Ensure both pins start LOW (off) */
-    gpio_set_level(IN1, 0);
-    gpio_set_level(IN2, 0);
-    ESP_LOGI(TAG, "Heat/Cool task started — IN1/IN2 both OFF");
-
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(10000));
-        ESP_LOGI(TAG, "Heat monitor: IN1=%d IN2=%d",
-                 gpio_get_level(IN1), gpio_get_level(IN2));
+        ESP_LOGI(TAG, "Heat/Cool task running");
+        gpio_set_level(IN1, 1);
+        gpio_set_level(IN2, 0);
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
  
+/* ══════════════════════════════════════════════════════════════
+ *  BUTTON TOGGLE TASK  (leader only)
+ *
+ *  Surveille 2 boutons en input avec pull-up interne.
+ *  Chaque appui inverse le flag et envoie la commande UDP :
+ *
+ *    Bouton GPIO2 → lumière
+ *      flag false → true  : envoie CMD_LUMIERE_ON  (0x11)
+ *      flag true  → false : envoie CMD_LUMIERE_OFF (0x21)
+ *
+ *    Bouton GPIO3 → robinet
+ *      flag false → true  : envoie CMD_ROBINET_ON  (0x13)
+ *      flag true  → false : envoie CMD_ROBINET_OFF (0x23)
+ *
+ *  Anti-rebond par polling : on attend BTN_DEBOUNCE_MS ms après
+ *  le front descendant avant de confirmer l'appui.
+ * ══════════════════════════════════════════════════════════════ */
+static void button_toggle_task(void *pvParameters)
+{
+    otInstance *instance = (otInstance *)pvParameters;
+
+    /* Configure les 2 boutons en entrée avec pull-up interne
+     * → bouton non appuyé = HIGH, appuyé = LOW              */
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << BTN_LUMIERE_PIN) |
+                        (1ULL << BTN_ROBINET_PIN),
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    ESP_LOGI(TAG, "Button task started — GPIO%d (lumiere) GPIO%d (robinet)",
+             BTN_LUMIERE_PIN, BTN_ROBINET_PIN);
+
+    /* Flags d'état — false = OFF, true = ON */
+    bool lumiere_on = false;
+    bool robinet_on = false;
+
+    /* Dernier état lu (pull-up → repos = 1) */
+    int last_lumiere = 1;
+    int last_robinet = 1;
+
+    /* Compteurs anti-rebond en ms */
+    int debounce_lumiere = 0;
+    int debounce_robinet = 0;
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(BTN_POLL_MS));
+
+        int cur_lumiere = gpio_get_level(BTN_LUMIERE_PIN);
+        int cur_robinet = gpio_get_level(BTN_ROBINET_PIN);
+
+        /* ── Bouton lumière (GPIO2) ──────────────────────── */
+        if (last_lumiere == 1 && cur_lumiere == 0) {
+            /* Front descendant détecté → début anti-rebond */
+            debounce_lumiere = BTN_DEBOUNCE_MS;
+        } else if (debounce_lumiere > 0) {
+            debounce_lumiere -= BTN_POLL_MS;
+            if (debounce_lumiere <= 0 && cur_lumiere == 0) {
+                /* Appui confirmé → inverse le flag */
+                lumiere_on = !lumiere_on;
+                uint8_t cmd = lumiere_on ? CMD_LUMIERE_ON : CMD_LUMIERE_OFF;
+
+                ESP_LOGI(TAG, "BTN lumiere → %s (0x%02X)",
+                         lumiere_on ? "ON" : "OFF", cmd);
+
+                esp_openthread_lock_acquire(portMAX_DELAY);
+                bool ok = send_to_child_locked(instance, &cmd, 1);
+                esp_openthread_lock_release();
+
+                if (ok)
+                    ESP_LOGI(TAG, "Lumiere cmd sent: 0x%02X", cmd);
+                else
+                    ESP_LOGW(TAG, "Lumiere cmd failed (no child?)");
+
+                debounce_lumiere = 0;
+            }
+        }
+        last_lumiere = cur_lumiere;
+
+        /* ── Bouton robinet (GPIO3) ──────────────────────── */
+        if (last_robinet == 1 && cur_robinet == 0) {
+            debounce_robinet = BTN_DEBOUNCE_MS;
+        } else if (debounce_robinet > 0) {
+            debounce_robinet -= BTN_POLL_MS;
+            if (debounce_robinet <= 0 && cur_robinet == 0) {
+                robinet_on = !robinet_on;
+                uint8_t cmd = robinet_on ? CMD_ROBINET_ON : CMD_ROBINET_OFF;
+
+                ESP_LOGI(TAG, "BTN robinet → %s (0x%02X)",
+                         robinet_on ? "ON" : "OFF", cmd);
+
+                esp_openthread_lock_acquire(portMAX_DELAY);
+                bool ok = send_to_child_locked(instance, &cmd, 1);
+                esp_openthread_lock_release();
+
+                if (ok)
+                    ESP_LOGI(TAG, "Robinet cmd sent: 0x%02X", cmd);
+                else
+                    ESP_LOGW(TAG, "Robinet cmd failed (no child?)");
+
+                debounce_robinet = 0;
+            }
+        }
+        last_robinet = cur_robinet;
+    }
+}
+
 /* ══════════════════════════════════════════════════════════════
  *  GPIO MONITOR TASK
  *
@@ -932,7 +945,6 @@ void app_main(void)
  
     gpio_init_pins();
     servo_init();       /* both servos start at 0° */
-    robinet_init();     /* water valve PWM, starts OFF */
  
 #if CONFIG_OPENTHREAD_CLI
     esp_openthread_cli_init();
@@ -1021,6 +1033,7 @@ void app_main(void)
  
     xTaskCreate(uart_read_task,    "uart_read",    4096, instance, 5, NULL);
     xTaskCreate(gpio_monitor_task, "gpio_monitor", 2048, instance, 5, NULL);
+    xTaskCreate(button_toggle_task,"btn_toggle",   2048, instance, 5, NULL);
     xTaskCreate(led_blink_task,    "led_blink",    4096, NULL,     5, NULL);
  
 #endif
